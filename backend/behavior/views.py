@@ -179,6 +179,25 @@ class TradeViewSet(viewsets.ModelViewSet):
             'analysis': analysis,
             'nudge': nudge
         })
+    
+    @action(detail=False, methods=['post'])
+    def load_demo_scenario(self, request):
+        """
+        Load demo scenario for hackathon.
+        POST /api/behavior/trades/load_demo_scenario/
+        {"scenario": "revenge_trading"}
+        """
+        from .demo_data import load_demo_scenario
+        
+        scenario = request.data.get('scenario', 'revenge_trading')
+        user = load_demo_scenario(scenario=scenario)
+        
+        return Response({
+            'success': True,
+            'user_id': str(user.id),
+            'scenario': scenario,
+            'trades_loaded': Trade.objects.filter(user=user, is_mock=True).count()
+        })
 
 
 class BehavioralMetricViewSet(viewsets.ModelViewSet):
