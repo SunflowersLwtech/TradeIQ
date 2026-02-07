@@ -1,188 +1,188 @@
-# TradeIQ 环境配置指南
+# TradeIQ Environment Setup Guide
 
-## 🚀 快速开始
+## 🚀 Quick Start
 
-### 方法 1: 使用自动化脚本（推荐）
+### Method 1: Using Automated Script (Recommended)
 
 ```bash
-# 运行环境设置脚本（从项目根目录）
+# Run environment setup script (from project root)
 ./scripts/setup_env.sh
 
-# 激活环境
+# Activate environment
 conda activate tradeiq
 ```
 
-### 方法 2: 手动创建 conda 环境
+### Method 2: Manual Conda Environment Creation
 
 ```bash
-# 创建环境
+# Create environment
 conda env create -f scripts/environment.yml
 
-# 激活环境
+# Activate environment
 conda activate tradeiq
 
-# 安装依赖（如果需要更新）
+# Install dependencies (if update needed)
 pip install -r backend/requirements.txt
 ```
 
-### 方法 3: 使用 requirements.txt（如果不用 conda）
+### Method 3: Using requirements.txt (If Not Using Conda)
 
 ```bash
-# 创建虚拟环境
+# Create virtual environment
 python -m venv venv
 
-# 激活虚拟环境
+# Activate virtual environment
 # macOS/Linux:
 source venv/bin/activate
 # Windows:
 # venv\Scripts\activate
 
-# 安装依赖
+# Install dependencies
 pip install -r backend/requirements.txt
 ```
 
-## ✅ 验证环境
+## ✅ Verify Environment
 
-运行验证脚本检查所有依赖：
+Run verification script to check all dependencies:
 
 ```bash
 conda activate tradeiq
 python scripts/verify_env.py
 ```
 
-## 📦 依赖说明
+## 📦 Dependency Overview
 
-### 核心框架
-- **Django 5.0+**: Web 框架
-- **Django REST Framework 3.14+**: API 框架
-- **Django Channels 4.0+**: WebSocket 支持
+### Core Framework
+- **Django 5.0+**: Web framework
+- **Django REST Framework 3.14+**: API framework
+- **Django Channels 4.0+**: WebSocket support
 
-### 数据库
-- **psycopg2-binary**: PostgreSQL 驱动
-- **dj-database-url**: 数据库 URL 解析
+### Database
+- **psycopg2-binary**: PostgreSQL driver
+- **dj-database-url**: Database URL parser
 
 ### AI/LLM
-- **openai 1.0+**: DeepSeek API（OpenAI 兼容）
+- **openai 1.0+**: DeepSeek API (OpenAI compatible)
 
-### 外部 API
+### External APIs
 - **atproto**: Bluesky AT Protocol
-- **requests**: HTTP 客户端
+- **requests**: HTTP client
 
-### 工具
-- **python-dotenv**: 环境变量管理
+### Utilities
+- **python-dotenv**: Environment variable management
 
-## 🔧 环境配置
+## 🔧 Environment Configuration
 
-### 1. 激活环境
+### 1. Activate Environment
 
 ```bash
 conda activate tradeiq
 ```
 
-### 2. 配置环境变量
+### 2. Configure Environment Variables
 
-确保 `.env` 文件在项目根目录，包含所有必需的配置（见 `ENV_CHECKLIST.md`）
+Ensure `.env` file is in project root directory with all required configuration (see `ENV_CHECKLIST.md`)
 
-### 3. 运行 Django 迁移
+### 3. Run Django Migrations
 
 ```bash
 cd backend
 python manage.py migrate
 ```
 
-### 4. 创建超级用户（可选）
+### 4. Create Superuser (Optional)
 
 ```bash
 python manage.py createsuperuser
 ```
 
-### 5. 运行开发服务器
+### 5. Run Development Server
 
 ```bash
 python manage.py runserver
 ```
 
-## 🐛 常见问题
+## 🐛 Common Issues
 
-### 问题 1: conda 命令未找到
+### Issue 1: conda command not found
 
-**解决方案：**
-- 安装 Miniconda 或 Anaconda
-- 确保 conda 在 PATH 中
-- 重新打开终端
+**Solution:**
+- Install Miniconda or Anaconda
+- Ensure conda is in PATH
+- Restart terminal
 
-### 问题 2: psycopg2 安装失败
+### Issue 2: psycopg2 installation failed
 
-**解决方案：**
+**Solution:**
 ```bash
 # macOS
 brew install postgresql
 
-# 然后重新安装
+# Then reinstall
 pip install psycopg2-binary
 ```
 
-### 问题 3: channels 相关错误
+### Issue 3: channels related errors
 
-**解决方案：**
+**Solution:**
 ```bash
 pip install --upgrade channels channels[daphne] daphne
 ```
 
-### 问题 4: 环境激活后找不到包
+### Issue 4: Packages not found after environment activation
 
-**解决方案：**
+**Solution:**
 ```bash
-# 确保环境已激活
+# Ensure environment is activated
 conda activate tradeiq
 
-# 重新安装依赖
+# Reinstall dependencies
 pip install -r backend/requirements.txt
 ```
 
-## 📝 环境管理命令
+## 📝 Environment Management Commands
 
 ```bash
-# 列出所有 conda 环境
+# List all conda environments
 conda env list
 
-# 激活环境
+# Activate environment
 conda activate tradeiq
 
-# 停用环境
+# Deactivate environment
 conda deactivate
 
-# 删除环境（如果需要）
+# Remove environment (if needed)
 conda env remove -n tradeiq
 
-# 导出环境（备份）
+# Export environment (backup)
 conda env export > environment_backup.yml
 ```
 
-## 🔄 更新依赖
+## 🔄 Update Dependencies
 
 ```bash
-# 激活环境
+# Activate environment
 conda activate tradeiq
 
-# 更新所有包
+# Update all packages
 pip install --upgrade -r backend/requirements.txt
 
-# 或更新单个包
+# Or update single package
 pip install --upgrade django
 ```
 
-## 📋 Python 版本要求
+## 📋 Python Version Requirements
 
-- **推荐**: Python 3.11
-- **最低**: Python 3.10
-- **不支持**: Python 3.9 及以下
+- **Recommended**: Python 3.11
+- **Minimum**: Python 3.10
+- **Not Supported**: Python 3.9 and below
 
-## ✨ 下一步
+## ✨ Next Steps
 
-环境配置完成后：
+After environment configuration:
 
-1. ✅ 验证环境：`python verify_env.py`
-2. ✅ 运行迁移：`cd backend && python manage.py migrate`
-3. ✅ 启动服务器：`python manage.py runserver`
-4. ✅ 访问：http://localhost:8000
+1. ✅ Verify environment: `python verify_env.py`
+2. ✅ Run migrations: `cd backend && python manage.py migrate`
+3. ✅ Start server: `python manage.py runserver`
+4. ✅ Visit: http://localhost:8000

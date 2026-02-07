@@ -5,7 +5,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 interface UseApiWithFallbackOptions<T> {
   /** Async function that calls the real API */
   fetcher: () => Promise<T>;
-  /** Mock data to use when API is unavailable */
+  /** Fallback state to use when API is unavailable */
   fallbackData: T;
   /** Polling interval in ms (0 = no polling) */
   pollInterval?: number;
@@ -24,8 +24,8 @@ interface UseApiWithFallbackResult<T> {
 }
 
 /**
- * Hook that fetches data from backend API with automatic fallback to mock data.
- * When backend is unavailable, seamlessly uses mock data.
+ * Hook that fetches data from backend API with automatic fallback state.
+ * When backend is unavailable, seamlessly uses fallbackData.
  * Periodically retries the backend to detect when it comes back online.
  */
 export function useApiWithFallback<T>({

@@ -180,20 +180,11 @@ def detect_loss_chasing(trades: List[Dict[str, Any]]) -> Dict[str, Any]:
     
     for trade in sorted_trades:
         pnl = float(trade.get('pnl', 0))
-        
-        # Estimate position size from PnL and price movement
-        entry = trade.get('entry_price')
-        exit = trade.get('exit_price')
-        
-        if entry and exit:
-            price_move = abs(float(exit) - float(entry))
-            if price_move > 0:
-                size = abs(pnl) / price_move
-            else:
-                size = abs(pnl)
-        else:
-            # Fallback: use absolute PnL as proxy for size
-            size = abs(pnl)
+
+        # We do not store true position size in Trade.
+        # Using abs(pnl) is a more stable proxy than inferring from entry/exit
+        # deltas, which can mask size escalation when the price move also grows.
+        size = abs(pnl)
         
         # Check if this is a loss
         if pnl < 0:

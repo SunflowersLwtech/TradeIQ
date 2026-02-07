@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import AppShell from "@/components/layout/AppShell";
 import BehaviorCard from "@/components/behavior/BehaviorCard";
 import DataCard from "@/components/ui/DataCard";
@@ -37,22 +37,56 @@ function getDetectedPatterns(sa: ScenarioAnalysis): string[] {
     .map(([k]) => k.replace(/_/g, " "));
 }
 
-const scenarios = [
-  { id: "overtrading", label: "Overtrading", icon: "⚡" },
-  { id: "revenge_trading", label: "Revenge Trading", icon: "🔥" },
-  { id: "loss_chasing", label: "Loss Chasing", icon: "📉" },
-  { id: "healthy_session", label: "Healthy Session", icon: "✅" },
-];
+type DemoScenario = {
+  id: string;
+  label: string;
+  icon: string;
+};
+
+function scenarioIcon(name: string): string {
+  if (name.includes("over")) return "⚡";
+  if (name.includes("revenge")) return "🔥";
+  if (name.includes("loss")) return "📉";
+  if (name.includes("healthy")) return "✅";
+  return "🧪";
+}
 
 export default function BehaviorPage() {
   const [activeScenario, setActiveScenario] = useState<string | null>(null);
   const [isLoadingScenario, setIsLoadingScenario] = useState(false);
   const [scenarioAnalysis, setScenarioAnalysis] = useState<ScenarioAnalysis | null>(null);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
+  const [scenarios, setScenarios] = useState<DemoScenario[]>([]);
 
   const { data: trades, isUsingMock: tradesIsMock, isBackendOnline, refetch: refetchTrades } = useTrades();
   const { data: patterns, isUsingMock: patternsIsMock, refetch: refetchPatterns } = useBehaviorPatterns();
   const { data: stats, isUsingMock: statsIsMock, refetch: refetchStats } = useSessionStats();
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadScenarios = async () => {
+      try {
+        const resp = await api.listScenarios();
+        if (cancelled) return;
+        const mapped = (resp.scenarios || []).map((scenario) => ({
+          id: scenario.name,
+          label: scenario.description || scenario.name,
+          icon: scenarioIcon(scenario.name.toLowerCase()),
+        }));
+        setScenarios(mapped);
+      } catch {
+        if (!cancelled) {
+          setScenarios([]);
+        }
+      }
+    };
+
+    loadScenarios();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const handleLoadScenario = async (scenario: string) => {
     setIsLoadingScenario(true);
@@ -64,14 +98,14 @@ export default function BehaviorPage() {
       // Refetch all data after loading scenario
       await Promise.all([refetchTrades(), refetchPatterns(), refetchStats()]);
     } catch {
-      // Scenario load failed — keep mock data
+      setAnalysisError("Scenario loading failed. Ensure demo_scenarios exists in Supabase.");
     }
     // Also run AI analysis on the scenario
     try {
       const analysis = await api.analyzeScenario(scenario);
       setScenarioAnalysis(analysis);
     } catch {
-      setAnalysisError("AI analysis unavailable. Showing pattern data from backend.");
+      setAnalysisError("AI analysis unavailable for this scenario.");
     }
     setIsLoadingScenario(false);
   };
@@ -80,12 +114,12 @@ export default function BehaviorPage() {
 
   return (
     <AppShell>
-      <div className="p-4 space-y-4">
+      <div className="p-6 md:p-8 space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-lg font-bold text-white tracking-tight">Behavioral Coach</h1>
-            <p className="text-[11px] text-muted mono-data mt-0.5">
+            <h1 className="text-xl font-bold text-white tracking-tight">Behavioral Coach</h1>
+            <p className="text-xs text-muted mono-data mt-1">
               AI-powered trading behavior analysis and pattern detection
             </p>
           </div>
@@ -93,7 +127,7 @@ export default function BehaviorPage() {
         </div>
 
         {/* Session Health Overview */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
           <DataCard title="Session Score" value={`${stats.sessionScore}/100`} subtitle={stats.sessionScore > 70 ? "Good" : stats.sessionScore > 40 ? "Needs improvement" : "Poor"} trend={stats.sessionScore > 50 ? "up" : "down"} glow />
           <DataCard title="Trades Today" value={String(stats.tradesToday)} subtitle={stats.tradesToday > 10 ? "Above average" : "Normal"} trend={stats.tradesToday > 10 ? "down" : "up"} />
           <DataCard title="Win Rate" value={`${stats.winRate}%`} subtitle={stats.winRate < 50 ? `Below baseline 55%` : "Above baseline"} trend={stats.winRate >= 50 ? "up" : "down"} />
@@ -108,42 +142,47 @@ export default function BehaviorPage() {
         </div>
 
         {/* Demo Scenario Loader */}
-        <div className="bg-card border border-border rounded-sm p-4">
-          <h3 className="text-[10px] font-semibold tracking-wider text-muted uppercase mono-data mb-3">
+        <div className="bg-card border border-border rounded-sm p-5">
+          <h3 className="text-xs font-semibold tracking-wider text-muted uppercase mono-data mb-4">
             LOAD DEMO SCENARIO
           </h3>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-3">
             {scenarios.map((s) => (
               <button
                 key={s.id}
                 onClick={() => handleLoadScenario(s.id)}
                 disabled={isLoadingScenario}
                 className={cn(
-                  "flex items-center gap-2 px-3 py-2 rounded-sm border text-left transition-all",
+                  "flex items-center gap-2.5 px-4 py-2.5 rounded-sm border text-left transition-all",
                   activeScenario === s.id
                     ? "border-accent bg-accent/10 text-white"
                     : "border-border bg-surface text-muted hover:text-white hover:border-muted",
                   isLoadingScenario && "opacity-50 cursor-not-allowed"
                 )}
               >
-                <span>{s.icon}</span>
-                <span className="text-[10px] font-medium mono-data tracking-wider">{s.label}</span>
+                <span className="text-lg">{s.icon}</span>
+                <span className="text-xs font-medium mono-data tracking-wider">{s.label}</span>
               </button>
             ))}
+            {scenarios.length === 0 && (
+              <div className="text-xs text-muted mono-data">
+                No scenarios available from demo_scenarios table.
+              </div>
+            )}
           </div>
           {isLoadingScenario && (
-            <div className="mt-2 text-[10px] text-muted mono-data animate-pulse">Loading scenario from backend...</div>
+            <div className="mt-3 text-xs text-muted mono-data animate-pulse">Loading scenario from backend...</div>
           )}
         </div>
 
         {/* AI Scenario Analysis Results */}
         {(scenarioAnalysis || analysisError) && (
-          <div className="bg-card border border-border rounded-sm p-4 animate-fade-in">
-            <h3 className="text-[10px] font-semibold tracking-wider text-muted uppercase mono-data mb-3">
+          <div className="bg-card border border-border rounded-sm p-5 animate-fade-in">
+            <h3 className="text-xs font-semibold tracking-wider text-muted uppercase mono-data mb-4">
               AI SCENARIO ANALYSIS
             </h3>
             {analysisError ? (
-              <div className="text-[10px] text-warning mono-data">{analysisError}</div>
+              <div className="text-xs text-warning mono-data">{analysisError}</div>
             ) : scenarioAnalysis && (() => {
               const riskLevel = getRiskLevel(scenarioAnalysis);
               const nudgeText = getNudgeText(scenarioAnalysis);
@@ -153,7 +192,7 @@ export default function BehaviorPage() {
               <div className="space-y-4">
                 {/* Nudge Message - Prominent */}
                 <div className={cn(
-                  "p-3 rounded-sm border-l-2",
+                  "p-4 rounded-sm border-l-2",
                   riskLevel === "critical" || riskLevel === "high"
                     ? "bg-loss/10 border-loss"
                     : riskLevel === "medium"
@@ -223,26 +262,26 @@ export default function BehaviorPage() {
         )}
 
         {/* Pattern Detection Timeline */}
-        <div className="bg-card border border-border rounded-sm p-4">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-              <h3 className="text-[10px] font-semibold tracking-wider text-muted uppercase mono-data">
+        <div className="bg-card border border-border rounded-sm p-5">
+          <div className="flex items-center justify-between mb-5">
+            <div className="flex items-center gap-3">
+              <h3 className="text-xs font-semibold tracking-wider text-muted uppercase mono-data">
                 PATTERN DETECTION TIMELINE
               </h3>
               <DataSourceBadge isUsingMock={patternsIsMock} />
             </div>
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-loss animate-pulse" /><span className="text-[9px] text-muted mono-data">Critical</span></div>
-              <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-warning" /><span className="text-[9px] text-muted mono-data">Warning</span></div>
-              <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-profit" /><span className="text-[9px] text-muted mono-data">Healthy</span></div>
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-loss animate-pulse" /><span className="text-[11px] text-muted mono-data">Critical</span></div>
+              <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-warning" /><span className="text-[11px] text-muted mono-data">Warning</span></div>
+              <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-profit" /><span className="text-[11px] text-muted mono-data">Healthy</span></div>
             </div>
           </div>
 
           <div className="relative">
             <div className="absolute left-[7px] top-0 bottom-0 w-px bg-border" />
-            <div className="space-y-4">
+            <div className="space-y-5">
               {patterns.map((pattern, i) => (
-                <div key={pattern.id} className="relative pl-6 animate-fade-in" style={{ animationDelay: `${i * 100}ms` }}>
+                <div key={pattern.id} className="relative pl-7 animate-fade-in" style={{ animationDelay: `${i * 100}ms` }}>
                   <div className={cn(
                     "absolute left-0 top-2 w-4 h-4 rounded-full border-2 bg-card z-10",
                     pattern.severity === "critical" && "border-loss",
@@ -261,21 +300,26 @@ export default function BehaviorPage() {
                   <BehaviorCard pattern={pattern} />
                 </div>
               ))}
+              {patterns.length === 0 && (
+                <div className="pl-7 text-[11px] text-muted mono-data">
+                  No elevated behavioral patterns detected from recent trade data.
+                </div>
+              )}
             </div>
           </div>
         </div>
 
         {/* Trade Log */}
         <div className="bg-card border border-border rounded-sm">
-          <div className="px-4 py-3 border-b border-border flex items-center justify-between">
-            <h3 className="text-[10px] font-semibold tracking-wider text-muted uppercase mono-data">
+          <div className="px-5 py-3.5 border-b border-border flex items-center justify-between">
+            <h3 className="text-xs font-semibold tracking-wider text-muted uppercase mono-data">
               RECENT TRADES
             </h3>
             <DataSourceBadge isUsingMock={tradesIsMock} />
           </div>
           <div className="divide-y divide-border/30">
             {trades.map((trade) => (
-              <div key={trade.id} className="grid grid-cols-12 gap-2 px-4 py-2.5 items-center text-[10px] mono-data">
+              <div key={trade.id} className="grid grid-cols-12 gap-3 px-5 py-3 items-center text-xs mono-data">
                 <div className="col-span-2 text-muted-foreground">{trade.time}</div>
                 <div className="col-span-3 text-white">{trade.instrument}</div>
                 <div className={cn("col-span-2", trade.direction === "BUY" ? "text-profit" : "text-loss")}>{trade.direction}</div>
@@ -284,7 +328,7 @@ export default function BehaviorPage() {
               </div>
             ))}
             {trades.length === 0 && (
-              <div className="px-4 py-8 text-center text-[10px] text-muted-foreground mono-data">
+              <div className="px-5 py-10 text-center text-xs text-muted-foreground mono-data">
                 No trades yet. Load a demo scenario to see trade data.
               </div>
             )}

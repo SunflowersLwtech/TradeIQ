@@ -20,7 +20,7 @@ from tradeiq.permissions import IsAuthenticatedOrReadOnly
 
 
 class UserProfileViewSet(viewsets.ModelViewSet):
-    queryset = UserProfile.objects.all()
+    queryset = UserProfile.objects.all().order_by("-created_at")
     serializer_class = UserProfileSerializer
     permission_classes = [IsAuthenticatedOrReadOnly]
     
@@ -88,7 +88,7 @@ class TradeViewSet(viewsets.ModelViewSet):
             # Send nudge via WebSocket
             channel_layer = get_channel_layer()
             async_to_sync(channel_layer.group_send)(
-                "chat",  # Same group as ChatConsumer
+                f"chat_user_{user.id}",
                 {
                     "type": "chat_message",
                     "message": {

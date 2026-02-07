@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ResponsiveContainer,
   AreaChart,
@@ -11,97 +11,117 @@ import {
   Tooltip,
 } from "recharts";
 import { cn } from "@/lib/utils";
+import api from "@/lib/api";
 
 interface DataPoint {
   time: string;
   value: number;
 }
 
-function generateMockData(points = 50): DataPoint[] {
-  const data: DataPoint[] = [];
-  let value = 10000;
-  const now = new Date();
-
-  for (let i = points; i >= 0; i--) {
-    const time = new Date(now.getTime() - i * 3600000);
-    value += (Math.random() - 0.48) * 50;
-    data.push({
-      time: time.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false }),
-      value: Math.round(value * 100) / 100,
-    });
-  }
-
-  return data;
-}
-
 interface PnLChartProps {
   className?: string;
   title?: string;
   height?: number;
+  instrument?: string;
+  timeframe?: string;
 }
 
-export default function PnLChart({ className, title = "PORTFOLIO PnL", height = 300 }: PnLChartProps) {
-  const [data, setData] = useState<DataPoint[]>(() => generateMockData());
-  const [hoveredValue, setHoveredValue] = useState<number | null>(null);
+function formatTimeLabel(isoOrDate: string | Date): string {
+  const date = typeof isoOrDate === "string" ? new Date(isoOrDate) : isoOrDate;
+  return date.toLocaleTimeString("en-US", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+}
 
-  const addDataPoint = useCallback(() => {
-    setData((prev) => {
-      if (prev.length === 0) return prev;
-      const lastValue = prev[prev.length - 1].value;
-      const newValue = lastValue + (Math.random() - 0.48) * 20;
-      const newPoint = {
-        time: new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false }),
-        value: Math.round(newValue * 100) / 100,
-      };
-      return [...prev.slice(1), newPoint];
-    });
-  }, []);
+export default function PnLChart({
+  className,
+  title = "PORTFOLIO PnL",
+  height = 300,
+  instrument,
+  timeframe = "1h",
+}: PnLChartProps) {
+  const [data, setData] = useState<DataPoint[]>([]);
+  const [hoveredValue, setHoveredValue] = useState<number | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const interval = setInterval(addDataPoint, 3000);
-    return () => clearInterval(interval);
-  }, [addDataPoint]);
+    let cancelled = false;
 
-  if (data.length === 0) return null;
+    const fetchData = async () => {
+      setIsLoading(true);
+      try {
+        if (instrument) {
+          const history = await api.getMarketHistory(instrument, timeframe, 120);
+          const chartData = (history.candles || []).map((candle) => ({
+            time: formatTimeLabel(candle.time),
+            value: Number(candle.close || 0),
+          }));
+
+          if (!cancelled) {
+            setData(chartData);
+          }
+        } else {
+          const tradesResp = await api.getTrades();
+          const trades = Array.isArray(tradesResp) ? tradesResp : tradesResp.results || [];
+
+          const sorted = [...trades].sort((a, b) => {
+            const at = new Date(a.opened_at || a.created_at || Date.now()).getTime();
+            const bt = new Date(b.opened_at || b.created_at || Date.now()).getTime();
+            return at - bt;
+          });
+
+          let cumulative = 0;
+          const points = sorted.map((trade) => {
+            cumulative += Number(trade.pnl || 0);
+            const timestamp = trade.opened_at || trade.created_at || new Date().toISOString();
+            return {
+              time: formatTimeLabel(timestamp),
+              value: Number(cumulative.toFixed(2)),
+            };
+          });
+
+          if (!cancelled) {
+            setData(points);
+          }
+        }
+      } catch {
+        if (!cancelled) {
+          setData([]);
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    fetchData();
+    const interval = setInterval(fetchData, instrument ? 15000 : 30000);
+
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [instrument, timeframe]);
 
   const currentValue = hoveredValue ?? data[data.length - 1]?.value ?? 0;
   const startValue = data[0]?.value ?? 0;
   const pnl = currentValue - startValue;
-  const pnlPercent = startValue > 0 ? (pnl / startValue) * 100 : 0;
+  const pnlPercent = startValue !== 0 ? (pnl / Math.abs(startValue)) * 100 : 0;
   const isPositive = pnl >= 0;
   const chartColor = isPositive ? "#4ade80" : "#f87171";
 
-  return (
-    <div className={cn("bg-card border border-border rounded-sm p-4", className)}>
-      {/* Header */}
-      <div className="flex items-center justify-between mb-4">
-        <div>
-          <h3 className="text-[10px] font-semibold tracking-wider text-muted uppercase mono-data">
-            {title}
-          </h3>
-          <div className="flex items-baseline gap-3 mt-1">
-            <span className="text-2xl font-bold mono-data text-white">
-              ${currentValue.toLocaleString("en-US", { minimumFractionDigits: 2 })}
-            </span>
-            <span
-              className={cn(
-                "text-sm mono-data font-semibold",
-                isPositive ? "text-profit glow-green" : "text-loss glow-red"
-              )}
-            >
-              {isPositive ? "+" : ""}
-              {pnl.toFixed(2)} ({pnlPercent.toFixed(2)}%)
-            </span>
-          </div>
-        </div>
+  const chartBody = useMemo(() => {
+    if (isLoading) {
+      return <div className="text-xs text-muted mono-data py-16 text-center">Loading live chart data...</div>;
+    }
+    if (data.length === 0) {
+      return <div className="text-xs text-muted mono-data py-16 text-center">No chart data available.</div>;
+    }
 
-        <div className="flex items-center gap-2">
-          <div className={cn("w-2 h-2 rounded-full", isPositive ? "bg-profit" : "bg-loss")} />
-          <span className="text-[9px] text-muted mono-data">LIVE</span>
-        </div>
-      </div>
-
-      {/* Chart */}
+    return (
       <ResponsiveContainer width="100%" height={height}>
         <AreaChart
           data={data}
@@ -132,7 +152,7 @@ export default function PnLChart({ className, title = "PORTFOLIO PnL", height = 
             axisLine={false}
             tickLine={false}
             domain={["auto", "auto"]}
-            tickFormatter={(v) => `$${(v / 1000).toFixed(1)}k`}
+            tickFormatter={(v) => Number(v).toFixed(2)}
           />
           <Tooltip
             contentStyle={{
@@ -143,7 +163,7 @@ export default function PnLChart({ className, title = "PORTFOLIO PnL", height = 
               fontFamily: "JetBrains Mono, monospace",
               color: "#ffffff",
             }}
-            formatter={(value: number | undefined) => [`$${(value ?? 0).toFixed(2)}`, "Value"]}
+            formatter={(value: number | undefined) => [Number(value ?? 0).toFixed(2), "Value"]}
           />
           <Area
             type="monotone"
@@ -161,6 +181,37 @@ export default function PnLChart({ className, title = "PORTFOLIO PnL", height = 
           />
         </AreaChart>
       </ResponsiveContainer>
+    );
+  }, [isLoading, data, height, chartColor]);
+
+  return (
+    <div className={cn("bg-card border border-border rounded-sm p-4", className)}>
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <h3 className="text-[10px] font-semibold tracking-wider text-muted uppercase mono-data">{title}</h3>
+          <div className="flex items-baseline gap-3 mt-1">
+            <span className="text-2xl font-bold mono-data text-white">
+              {currentValue.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 4 })}
+            </span>
+            <span
+              className={cn(
+                "text-sm mono-data font-semibold",
+                isPositive ? "text-profit glow-green" : "text-loss glow-red"
+              )}
+            >
+              {isPositive ? "+" : ""}
+              {pnl.toFixed(2)} ({pnlPercent.toFixed(2)}%)
+            </span>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <div className={cn("w-2 h-2 rounded-full", isPositive ? "bg-profit" : "bg-loss")} />
+          <span className="text-[9px] text-muted mono-data">LIVE</span>
+        </div>
+      </div>
+
+      {chartBody}
     </div>
   );
 }

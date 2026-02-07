@@ -11,6 +11,7 @@ from agents.tools_registry import (
     get_content_tools,
     execute_tool
 )
+from agents.compliance import check_compliance, append_disclaimer
 import json
 
 
@@ -117,12 +118,24 @@ def route_query(
         else:
             # No tool calls, direct response
             final_response = message.content
-        
+
+        final_response = final_response or ""
+        passed, violations = check_compliance(final_response)
+        if not passed:
+            final_response = (
+                "I'm designed to explain what has happened in markets and trading behavior patterns, "
+                "not to provide predictions or signals."
+            )
+
+        if "not financial advice" not in final_response.lower():
+            final_response = append_disclaimer(final_response)
+
         return {
             "response": final_response,
             "source": f"agents.router.{agent_type}",
             "tools_used": [t["name"] for t in tools_used],
-            "tool_details": tools_used
+            "tool_details": tools_used,
+            "compliance_violations": violations if not passed else [],
         }
         
     except Exception as e:

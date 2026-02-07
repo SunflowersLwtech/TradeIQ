@@ -1,29 +1,90 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 
+function buildUiErrorMessage(errorCode: string, expectedGoogleRedirectUri: string): string {
+  const normalizedError = errorCode.toLowerCase();
+
+  if (normalizedError.includes("redirect_uri_mismatch")) {
+    return `Google OAuth redirect URI mismatch. In Google Cloud Console, add this exact URI: ${expectedGoogleRedirectUri}`;
+  }
+  if (normalizedError.includes("callback_failed")) {
+    return "OAuth callback failed while exchanging the auth code. Please try signing in again.";
+  }
+  if (normalizedError.includes("missing_code")) {
+    return "Missing OAuth code in callback URL. Please restart Google sign-in from the login page.";
+  }
+  if (normalizedError.includes("auth_failed")) {
+    return "Authentication failed. Please retry Google sign-in.";
+  }
+  if (normalizedError.includes("oauth_url_missing")) {
+    return "Supabase did not return an OAuth redirect URL. Check Supabase Auth provider setup.";
+  }
+  return errorCode;
+}
+
 export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
+  const [localError, setLocalError] = useState<string | null>(null);
+  const [queryError, setQueryError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const searchParams = new URLSearchParams(window.location.search);
+    const nextQueryError =
+      searchParams.get("error") ??
+      searchParams.get("oauth_error") ??
+      searchParams.get("oauth_error_description");
+    setQueryError(nextQueryError);
+  }, []);
 
   const handleGoogleLogin = async () => {
     setIsLoading(true);
+    setLocalError(null);
     try {
+      const redirectTo =
+        process.env.NEXT_PUBLIC_AUTH_CALLBACK_URL ??
+        `${window.location.origin}/auth/callback`;
+
       // Supabase Google OAuth
       const { createClient } = await import("@/lib/supabase/client");
       const supabase = createClient();
-      await supabase.auth.signInWithOAuth({
+      const { data, error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
+          redirectTo,
+          skipBrowserRedirect: true,
         },
       });
+
+      if (error) {
+        setLocalError(error.message);
+        setIsLoading(false);
+        return;
+      }
+
+      if (data?.url) {
+        window.location.assign(data.url);
+        return;
+      }
+
+      setLocalError("oauth_url_missing");
+      setIsLoading(false);
     } catch (error) {
       console.error("Login failed:", error);
+      setLocalError(error instanceof Error ? error.message : "oauth_start_failed");
       setIsLoading(false);
     }
   };
+
+  const expectedGoogleRedirectUri = process.env.NEXT_PUBLIC_SUPABASE_URL
+    ? `${process.env.NEXT_PUBLIC_SUPABASE_URL.replace(/\/$/, "")}/auth/v1/callback`
+    : "https://<your-project-ref>.supabase.co/auth/v1/callback";
+  const errorMessage = localError ?? queryError;
+  const uiErrorMessage = errorMessage
+    ? buildUiErrorMessage(errorMessage, expectedGoogleRedirectUri)
+    : null;
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
@@ -60,6 +121,12 @@ export default function LoginPage() {
           <p className="text-[11px] text-muted text-center mb-6">
             Sign in to access your AI trading dashboard
           </p>
+
+          {uiErrorMessage && (
+            <div className="mb-4 rounded-sm border border-loss/40 bg-loss/10 p-3">
+              <p className="text-[10px] leading-relaxed text-loss">{uiErrorMessage}</p>
+            </div>
+          )}
 
           {/* Google Sign In */}
           <button

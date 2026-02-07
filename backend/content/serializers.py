@@ -9,6 +9,8 @@ class AIPersonaSerializer(serializers.ModelSerializer):
 
 
 class SocialPostSerializer(serializers.ModelSerializer):
+    persona_name = serializers.CharField(source="persona.name", read_only=True)
+
     class Meta:
         model = SocialPost
         fields = "__all__"

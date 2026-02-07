@@ -78,6 +78,38 @@ class PublishToBlueskyView(APIView):
     """Appendix B - POST content to Bluesky (single or thread)."""
     permission_classes = [AllowAny]
 
+    @staticmethod
+    def _normalize_thread_posts(content):
+        """
+        Normalize thread payload into list[str].
+        Accepts either:
+        - list of posts
+        - string joined by "\\n\\n---\\n\\n"
+        - plain string (treated as single post)
+        """
+        if isinstance(content, list):
+            posts = []
+            for item in content:
+                if isinstance(item, dict):
+                    value = str(item.get("content", "")).strip()
+                else:
+                    value = str(item).strip()
+                if value:
+                    posts.append(value)
+        elif isinstance(content, str):
+            raw = content.strip()
+            if not raw:
+                posts = []
+            elif "\n\n---\n\n" in raw:
+                posts = [part.strip() for part in raw.split("\n\n---\n\n") if part.strip()]
+            else:
+                posts = [raw]
+        else:
+            posts = []
+
+        # Bluesky hard limit per post
+        return [post[:300] for post in posts][:5]
+
     def post(self, request):
         content = request.data.get("content")
         post_id = request.data.get("post_id")
@@ -103,15 +135,23 @@ class PublishToBlueskyView(APIView):
 
         try:
             if post_type == "thread":
-                results = publisher.post_thread(content)
+                thread_posts = self._normalize_thread_posts(content)
+                if not thread_posts:
+                    return Response({"error": "thread content is empty"}, status=400)
+                results = publisher.post_thread(thread_posts)
             else:
+                if isinstance(content, list):
+                    content = "\n\n".join(str(item).strip() for item in content if str(item).strip())
+                if not isinstance(content, str):
+                    return Response({"error": "content must be a string for single post"}, status=400)
                 results = publisher.post(content)
 
             return Response({
                 "success": True,
                 "status": "published",
                 "platform": "bluesky",
-                "uri": results.get("uri") if isinstance(results, dict) else str(results),
+                "uri": results.get("uri") if isinstance(results, dict) else None,
+                "results": results if isinstance(results, list) else None,
             })
         except Exception as e:
             return Response({

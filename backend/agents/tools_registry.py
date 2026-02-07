@@ -104,6 +104,28 @@ def get_market_tools() -> List[Dict[str, Any]]:
                     "required": ["instrument"]
                 }
             }
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "analyze_technicals",
+                "description": "Analyze technical indicators and trend context for an instrument",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "instrument": {
+                            "type": "string",
+                            "description": "Trading instrument"
+                        },
+                        "timeframe": {
+                            "type": "string",
+                            "description": "Analysis timeframe",
+                            "default": "1h"
+                        }
+                    },
+                    "required": ["instrument"]
+                }
+            }
         }
     ]
 

@@ -3,20 +3,30 @@ Django Channels WebSocket Consumer for TradeIQ Chat
 Routes messages to AI agents via DeepSeek function calling
 """
 import json
+from urllib.parse import parse_qs
 from channels.generic.websocket import AsyncWebsocketConsumer
 from asgiref.sync import sync_to_async
 
 
 class ChatConsumer(AsyncWebsocketConsumer):
+    DEMO_USER_ID = "d1000000-0000-0000-0000-000000000001"
+
     async def connect(self):
-        self.room_group_name = "chat"
+        query_params = parse_qs(self.scope.get("query_string", b"").decode())
+        requested_user_id = query_params.get("user_id", [None])[0]
+        self.user_id = requested_user_id or self.DEMO_USER_ID
+        fallback_group_id = self.channel_name.replace(".", "_").replace("!", "_")
+        self.room_group_name = f"chat_user_{requested_user_id or fallback_group_id}"
+
         await self.channel_layer.group_add(self.room_group_name, self.channel_name)
         await self.accept()
+
         # Send welcome message
         await self.send(text_data=json.dumps({
             "type": "system",
             "message": "Connected to TradeIQ AI. Ask me about markets, your trading patterns, or content creation.",
-            "agent_type": "system"
+            "agent_type": "system",
+            "user_id": self.user_id,
         }))
 
     async def disconnect(self, close_code):
@@ -24,9 +34,9 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
     async def receive(self, text_data):
         data = json.loads(text_data)
-        message = data.get("message", "")
+        message = data.get("message") or data.get("content", "")
         agent_type = data.get("agent_type", "auto")
-        user_id = data.get("user_id")
+        user_id = data.get("user_id") or self.user_id
 
         if not message:
             return

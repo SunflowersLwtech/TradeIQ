@@ -1,63 +1,63 @@
-# 📁 文件夹整理说明
+# 📁 Folder Organization Guide
 
-## ✅ 整理完成
+## ✅ Organization Complete
 
-项目文件夹已重新组织，结构更加清晰有序。
+Project folders have been reorganized with a clearer and more structured layout.
 
-## 📋 整理内容
+## 📋 Organization Details
 
-### 1. 文档文件整理
+### 1. Documentation Files Organization
 
-**移动前** → **移动后**
+**Before** → **After**
 
 - `ENV_SETUP.md` → `docs/ENV_SETUP.md`
 - `ENV_SUMMARY.md` → `docs/ENV_SUMMARY.md`
 - `QUICK_START.md` → `docs/QUICK_START.md`
 - `dev/docs/*.md` → `docs/*.md`
 
-**结果：** 所有文档统一放在 `docs/` 目录
+**Result:** All documentation unified in `docs/` directory
 
-### 2. 脚本文件整理
+### 2. Script Files Organization
 
-**移动前** → **移动后**
+**Before** → **After**
 
 - `setup_env.sh` → `scripts/setup_env.sh`
 - `verify_env.py` → `scripts/verify_env.py`
 - `environment.yml` → `scripts/environment.yml`
 - `dev/tests/*.py` → `scripts/*.py`
 
-**结果：** 所有脚本和配置文件统一放在 `scripts/` 目录
+**Result:** All scripts and configuration files unified in `scripts/` directory
 
-### 3. 新增文件
+### 3. New Files
 
-- `README.md` - 项目主文档（根目录）
-- `docs/PROJECT_STRUCTURE.md` - 项目结构说明
-- `docs/FOLDER_ORGANIZATION.md` - 本文件
+- `README.md` - Main project documentation (root directory)
+- `docs/PROJECT_STRUCTURE.md` - Project structure guide
+- `docs/FOLDER_ORGANIZATION.md` - This file
 
-### 4. 更新的文件
+### 4. Updated Files
 
-- `.gitignore` - 添加了更多忽略规则
-- `scripts/setup_env.sh` - 更新了路径引用
-- `docs/QUICK_START.md` - 更新了脚本路径
-- `docs/ENV_SETUP.md` - 更新了脚本路径
+- `.gitignore` - Added more ignore rules
+- `scripts/setup_env.sh` - Updated path references
+- `docs/QUICK_START.md` - Updated script paths
+- `docs/ENV_SETUP.md` - Updated script paths
 
-## 📂 最终目录结构
+## 📂 Final Directory Structure
 
 ```
 tradeiq/
-├── README.md                 # 📄 项目主文档
-├── .env                      # ⚙️ 环境变量
-├── .gitignore               # 🚫 Git 忽略规则
+├── README.md                 # 📄 Main project documentation
+├── .env                      # ⚙️ Environment variables
+├── .gitignore               # 🚫 Git ignore rules
 │
-├── backend/                  # 💻 Django 后端代码
+├── backend/                  # 💻 Django backend code
 │   ├── agents/              # AI Agent
-│   ├── behavior/            # 行为分析
-│   ├── market/              # 市场分析
-│   ├── content/             # 内容生成
+│   ├── behavior/            # Behavioral analysis
+│   ├── market/              # Market analysis
+│   ├── content/             # Content generation
 │   ├── chat/                # WebSocket
 │   └── ...
 │
-├── docs/                     # 📚 项目文档
+├── docs/                     # 📚 Project documentation
 │   ├── DESIGN_DOCUMENT.md
 │   ├── DEEPSEEK_MIGRATION.md
 │   ├── LLM_COST_COMPARISON.md
@@ -67,69 +67,69 @@ tradeiq/
 │   ├── PROJECT_STRUCTURE.md
 │   └── ...
 │
-├── scripts/                  # 🛠️ 工具脚本
-│   ├── setup_env.sh         # 环境设置
-│   ├── verify_env.py        # 环境验证
-│   ├── environment.yml      # Conda 配置
-│   └── test_*.py            # 测试脚本
+├── scripts/                  # 🛠️ Utility scripts
+│   ├── setup_env.sh         # Environment setup
+│   ├── verify_env.py        # Environment verification
+│   ├── environment.yml      # Conda configuration
+│   └── test_*.py            # Test scripts
 │
-└── dev/                      # 🎨 开发资源
-    ├── diagrams/            # 架构图表
-    └── docs/                # 原始文档（PDF）
+└── dev/                      # 🎨 Development resources
+    ├── diagrams/            # Architecture diagrams
+    └── docs/                # Original documents (PDF)
 ```
 
-## 🔄 路径更新
+## 🔄 Path Updates
 
-### 脚本调用
+### Script Invocation
 
-**之前：**
+**Before:**
 ```bash
 ./setup_env.sh
 python verify_env.py
 conda env create -f environment.yml
 ```
 
-**现在：**
+**Now:**
 ```bash
 ./scripts/setup_env.sh
 python scripts/verify_env.py
 conda env create -f scripts/environment.yml
 ```
 
-### 文档访问
+### Documentation Access
 
-所有文档现在都在 `docs/` 目录下，可以通过 README.md 中的链接访问。
+All documentation is now in the `docs/` directory and can be accessed via links in README.md.
 
-## ✅ 验证整理结果
+## ✅ Verify Organization Results
 
-运行以下命令验证文件位置：
+Run the following commands to verify file locations:
 
 ```bash
-# 检查文档
+# Check documentation
 ls docs/
 
-# 检查脚本
+# Check scripts
 ls scripts/
 
-# 检查根目录（应该只有 README.md 和配置文件）
-ls -1 *.md *.sh *.yml *.py 2>/dev/null || echo "根目录已清理"
+# Check root directory (should only have README.md and config files)
+ls -1 *.md *.sh *.yml *.py 2>/dev/null || echo "Root directory cleaned"
 ```
 
-## 📝 注意事项
+## 📝 Notes
 
-1. **脚本路径** - 所有脚本调用都需要使用 `scripts/` 前缀
-2. **文档路径** - 文档链接已更新，指向 `docs/` 目录
-3. **环境变量** - `.env` 文件仍在根目录（正确位置）
-4. **Git 忽略** - 已更新 `.gitignore`，忽略更多临时文件
+1. **Script Paths** - All script invocations need to use `scripts/` prefix
+2. **Documentation Paths** - Documentation links have been updated to point to `docs/` directory
+3. **Environment Variables** - `.env` file remains in root directory (correct location)
+4. **Git Ignore** - Updated `.gitignore` to ignore more temporary files
 
-## 🎯 整理原则
+## 🎯 Organization Principles
 
-1. **文档集中** - 所有文档放在 `docs/`
-2. **脚本集中** - 所有脚本放在 `scripts/`
-3. **代码分离** - 后端代码在 `backend/`
-4. **资源分离** - 开发资源在 `dev/`
-5. **根目录简洁** - 只保留 README 和配置文件
+1. **Documentation Centralized** - All documentation in `docs/`
+2. **Scripts Centralized** - All scripts in `scripts/`
+3. **Code Separated** - Backend code in `backend/`
+4. **Resources Separated** - Development resources in `dev/`
+5. **Root Directory Clean** - Only README and config files remain
 
-## ✨ 整理完成
+## ✨ Organization Complete
 
-项目结构现在更加清晰，便于维护和协作！
+Project structure is now clearer and easier to maintain and collaborate!

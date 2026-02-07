@@ -17,56 +17,6 @@ from behavior.models import UserProfile, Trade
 DEMO_USER_ID = "d1000000-0000-0000-0000-000000000001"
 logger = logging.getLogger(__name__)
 
-LOCAL_SCENARIOS = {
-    "revenge_trading": {
-        "description": "Rapid consecutive losses after an initial loss",
-        "expected_detection": "revenge_trading",
-        "expected_nudge": "Pause before the next trade and reset risk limits.",
-        "trade_sequence": [
-            {"minutes_offset": 0, "instrument": "EUR/USD", "direction": "sell", "entry_price": 1.0850, "exit_price": 1.0830, "pnl": -200, "duration_seconds": 300},
-            {"minutes_offset": 2, "instrument": "EUR/USD", "direction": "sell", "entry_price": 1.0835, "exit_price": 1.0820, "pnl": -150, "duration_seconds": 45},
-            {"minutes_offset": 4, "instrument": "EUR/USD", "direction": "buy", "entry_price": 1.0825, "exit_price": 1.0807, "pnl": -180, "duration_seconds": 30},
-            {"minutes_offset": 6, "instrument": "GBP/USD", "direction": "sell", "entry_price": 1.2650, "exit_price": 1.2625, "pnl": -250, "duration_seconds": 20},
-            {"minutes_offset": 7, "instrument": "EUR/USD", "direction": "buy", "entry_price": 1.0810, "exit_price": 1.0780, "pnl": -300, "duration_seconds": 15},
-        ],
-    },
-    "overtrading": {
-        "description": "High-frequency trades above normal cadence",
-        "expected_detection": "overtrading",
-        "expected_nudge": "Reduce trade frequency and cap session count.",
-        "trade_sequence": [
-            {"minutes_offset": i * 8, "instrument": "EUR/USD", "direction": "buy" if i % 2 == 0 else "sell", "entry_price": 1.0850, "exit_price": 1.0852, "pnl": 20 if i % 3 == 0 else -25, "duration_seconds": 60}
-            for i in range(18)
-        ],
-    },
-    "loss_chasing": {
-        "description": "Increasing loss size in consecutive losing trades",
-        "expected_detection": "loss_chasing",
-        "expected_nudge": "Cut position size and step away after consecutive losses.",
-        "trade_sequence": [
-            {"minutes_offset": 0, "instrument": "BTC/USD", "direction": "buy", "entry_price": 44000, "exit_price": 43950, "pnl": -100, "duration_seconds": 180},
-            {"minutes_offset": 12, "instrument": "BTC/USD", "direction": "buy", "entry_price": 43980, "exit_price": 43900, "pnl": -150, "duration_seconds": 210},
-            {"minutes_offset": 24, "instrument": "BTC/USD", "direction": "buy", "entry_price": 43920, "exit_price": 43810, "pnl": -220, "duration_seconds": 240},
-            {"minutes_offset": 36, "instrument": "BTC/USD", "direction": "buy", "entry_price": 43840, "exit_price": 43700, "pnl": -300, "duration_seconds": 300},
-            {"minutes_offset": 48, "instrument": "ETH/USD", "direction": "buy", "entry_price": 2350, "exit_price": 2320, "pnl": -360, "duration_seconds": 240},
-            {"minutes_offset": 60, "instrument": "ETH/USD", "direction": "buy", "entry_price": 2330, "exit_price": 2290, "pnl": -450, "duration_seconds": 180},
-        ],
-    },
-    "healthy_session": {
-        "description": "Disciplined pacing and balanced outcomes",
-        "expected_detection": "healthy_session",
-        "expected_nudge": "Great discipline. Keep your current process.",
-        "trade_sequence": [
-            {"minutes_offset": 0, "instrument": "EUR/USD", "direction": "buy", "entry_price": 1.0840, "exit_price": 1.0852, "pnl": 80, "duration_seconds": 420},
-            {"minutes_offset": 45, "instrument": "GBP/USD", "direction": "sell", "entry_price": 1.2660, "exit_price": 1.2654, "pnl": 60, "duration_seconds": 360},
-            {"minutes_offset": 95, "instrument": "EUR/USD", "direction": "sell", "entry_price": 1.0860, "exit_price": 1.0864, "pnl": -30, "duration_seconds": 300},
-            {"minutes_offset": 160, "instrument": "BTC/USD", "direction": "buy", "entry_price": 44120, "exit_price": 44210, "pnl": 120, "duration_seconds": 540},
-            {"minutes_offset": 230, "instrument": "GOLD", "direction": "buy", "entry_price": 2058, "exit_price": 2056, "pnl": -25, "duration_seconds": 600},
-            {"minutes_offset": 290, "instrument": "EUR/USD", "direction": "buy", "entry_price": 1.0851, "exit_price": 1.0863, "pnl": 75, "duration_seconds": 420},
-        ],
-    },
-}
-
 
 def _load_scenario_from_db(scenario_name: str):
     """Load scenario from demo_scenarios table; return None if unavailable."""
@@ -80,7 +30,7 @@ def _load_scenario_from_db(scenario_name: str):
             )
             row = cursor.fetchone()
     except Exception as exc:
-        logger.info("demo_scenarios table unavailable; falling back to local scenarios: %s", exc)
+        logger.info("demo_scenarios table unavailable: %s", exc)
         return None
 
     if not row:
@@ -93,20 +43,8 @@ def _load_scenario_from_db(scenario_name: str):
         "expected_nudge": row[2],
     }
 
-
-def _load_scenario_from_local(scenario_name: str):
-    scenario = LOCAL_SCENARIOS.get(scenario_name)
-    if not scenario:
-        return None
-    return {
-        "trade_sequence": scenario["trade_sequence"],
-        "expected_detection": scenario["expected_detection"],
-        "expected_nudge": scenario["expected_nudge"],
-    }
-
-
 def _list_scenarios():
-    """Prefer database scenarios, fallback to built-in local scenarios."""
+    """List scenarios from Supabase/PostgreSQL demo_scenarios table."""
     try:
         if "demo_scenarios" not in connection.introspection.table_names():
             raise RuntimeError("demo_scenarios table not found")
@@ -126,17 +64,9 @@ def _list_scenarios():
                 for row in rows
             ]
     except Exception as exc:
-        logger.info("demo_scenarios listing fallback to local data: %s", exc)
+        logger.info("demo_scenarios listing unavailable: %s", exc)
 
-    return [
-        {
-            "name": name,
-            "description": config["description"],
-            "expected_detection": config["expected_detection"],
-            "expected_nudge": config["expected_nudge"],
-        }
-        for name, config in LOCAL_SCENARIOS.items()
-    ]
+    return []
 
 
 class LoadScenarioView(APIView):
@@ -149,7 +79,15 @@ class LoadScenarioView(APIView):
     permission_classes = [AllowAny]
 
     def post(self, request):
-        scenario_name = request.data.get("scenario", "revenge_trading")
+        scenario_name = request.data.get("scenario")
+        if not scenario_name:
+            scenarios = _list_scenarios()
+            scenario_name = scenarios[0]["name"] if scenarios else None
+        if not scenario_name:
+            return Response(
+                {"error": "No scenarios available in demo_scenarios table."},
+                status=404,
+            )
 
         # Ensure demo user exists
         demo_user, _ = UserProfile.objects.get_or_create(
@@ -158,14 +96,19 @@ class LoadScenarioView(APIView):
                 "email": "alex@tradeiq.demo",
                 "name": "Alex Demo",
                 "preferences": {"theme": "dark"},
-                "watchlist": ["EUR/USD", "BTC/USD", "GBP/USD"],
+                "watchlist": [],
             },
         )
 
-        scenario_data = _load_scenario_from_db(scenario_name) or _load_scenario_from_local(scenario_name)
+        scenario_data = _load_scenario_from_db(scenario_name)
         if not scenario_data:
             return Response(
-                {"error": f"Scenario '{scenario_name}' not found"},
+                {
+                    "error": (
+                        f"Scenario '{scenario_name}' not found in demo_scenarios table. "
+                        "Please seed demo_scenarios in Supabase/PostgreSQL first."
+                    )
+                },
                 status=404,
             )
 
@@ -200,6 +143,11 @@ class LoadScenarioView(APIView):
             )
             created_trades.append(str(trade.id))
 
+        watchlist = sorted({t.get("instrument", "") for t in trade_sequence if t.get("instrument")})
+        if watchlist:
+            demo_user.watchlist = watchlist
+            demo_user.save(update_fields=["watchlist"])
+
         return Response({
             "status": "loaded",
             "scenario": scenario_name,
@@ -232,7 +180,15 @@ class AnalyzeScenarioView(APIView):
     permission_classes = [AllowAny]
 
     def post(self, request):
-        scenario_name = request.data.get("scenario", "revenge_trading")
+        scenario_name = request.data.get("scenario")
+        if not scenario_name:
+            scenarios = _list_scenarios()
+            scenario_name = scenarios[0]["name"] if scenarios else None
+        if not scenario_name:
+            return Response(
+                {"error": "No scenarios available in demo_scenarios table."},
+                status=404,
+            )
 
         # First, load the scenario
         load_view = LoadScenarioView()
@@ -280,7 +236,7 @@ class SeedDemoView(APIView):
                 "email": "alex@tradeiq.demo",
                 "name": "Alex Demo",
                 "preferences": {"theme": "dark"},
-                "watchlist": ["EUR/USD", "BTC/USD", "GBP/USD"],
+                "watchlist": [],
             },
         )
 
@@ -310,7 +266,22 @@ class WowMomentView(APIView):
 
     def post(self, request):
         user_id = request.data.get("user_id", DEMO_USER_ID)
-        instrument = request.data.get("instrument", "EUR/USD")
+        instrument = request.data.get("instrument")
+        if not instrument:
+            try:
+                user = UserProfile.objects.get(id=user_id)
+                if isinstance(user.watchlist, list) and user.watchlist:
+                    instrument = user.watchlist[0]
+                else:
+                    last_trade = Trade.objects.filter(user=user).order_by("-opened_at", "-created_at").first()
+                    instrument = last_trade.instrument if last_trade else None
+            except Exception:
+                instrument = None
+        if not instrument:
+            return Response(
+                {"error": "No instrument provided and none found in user watchlist/trade history."},
+                status=400,
+            )
 
         results = {}
 

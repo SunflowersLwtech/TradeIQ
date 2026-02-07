@@ -10,6 +10,7 @@ const navLinks = [
   { href: "/market", label: "MARKET" },
   { href: "/behavior", label: "BEHAVIOR" },
   { href: "/content", label: "CONTENT" },
+  { href: "/pipeline", label: "AGENTS" },
 ];
 
 export default function Navbar() {

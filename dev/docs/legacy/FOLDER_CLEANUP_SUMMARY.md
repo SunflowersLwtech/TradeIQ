@@ -1,14 +1,14 @@
-# 📁 文件夹整理完成总结
+# 📁 Folder Cleanup Summary
 
-## ✅ 整理完成
+## ✅ Cleanup Complete
 
-项目文件夹已成功重新组织，结构更加清晰和专业。
+Project folders have been successfully reorganized with a clearer and more professional structure.
 
-## 📊 整理统计
+## 📊 Cleanup Statistics
 
-### 移动的文件
+### Moved Files
 
-**文档文件（8个）** → `docs/`
+**Documentation Files (8)** → `docs/`
 - ✅ ENV_SETUP.md
 - ✅ ENV_SUMMARY.md  
 - ✅ QUICK_START.md
@@ -18,108 +18,108 @@
 - ✅ ENV_CHECKLIST.md
 - ✅ REDIS_REQUIREMENT.md
 
-**脚本文件（5个）** → `scripts/`
+**Script Files (5)** → `scripts/`
 - ✅ setup_env.sh
 - ✅ verify_env.py
 - ✅ environment.yml
 - ✅ test_bluesky_simple.py
 - ✅ deriv_test.py
 
-**新增文件（3个）**
-- ✅ README.md（根目录）
+**New Files (3)**
+- ✅ README.md (root directory)
 - ✅ docs/PROJECT_STRUCTURE.md
 - ✅ docs/FOLDER_ORGANIZATION.md
 
-### 更新的文件
+### Updated Files
 
-- ✅ `.gitignore` - 添加了更多忽略规则
-- ✅ `scripts/setup_env.sh` - 更新了路径引用
-- ✅ `docs/QUICK_START.md` - 更新了脚本路径
-- ✅ `docs/ENV_SETUP.md` - 更新了脚本路径
+- ✅ `.gitignore` - Added more ignore rules
+- ✅ `scripts/setup_env.sh` - Updated path references
+- ✅ `docs/QUICK_START.md` - Updated script paths
+- ✅ `docs/ENV_SETUP.md` - Updated script paths
 
-## 📂 最终目录结构
+## 📂 Final Directory Structure
 
 ```
 tradeiq/
-├── README.md                    # 项目主文档 ⭐
-├── .env                         # 环境变量
-├── .gitignore                   # Git 忽略规则
+├── README.md                    # Main project documentation ⭐
+├── .env                         # Environment variables
+├── .gitignore                   # Git ignore rules
 │
-├── backend/                     # Django 后端代码
-│   ├── agents/                 # AI Agent 模块
-│   ├── behavior/               # 行为分析模块
-│   ├── market/                 # 市场分析模块
-│   ├── content/                # 内容生成模块
-│   ├── chat/                   # WebSocket 聊天
-│   ├── demo/                   # 演示工具
-│   └── fixtures/               # 演示数据
+├── backend/                     # Django backend code
+│   ├── agents/                 # AI Agent module
+│   ├── behavior/               # Behavioral analysis module
+│   ├── market/                 # Market analysis module
+│   ├── content/                # Content generation module
+│   ├── chat/                   # WebSocket chat
+│   ├── demo/                   # Demo tools
+│   └── fixtures/               # Demo data
 │
-├── docs/                        # 📚 所有文档
-│   ├── DESIGN_DOCUMENT.md      # 设计文档
-│   ├── DEEPSEEK_MIGRATION.md   # DeepSeek 迁移
-│   ├── LLM_COST_COMPARISON.md  # 成本对比
-│   ├── ENV_CHECKLIST.md        # 环境检查清单
-│   ├── ENV_SETUP.md            # 环境设置指南
-│   ├── QUICK_START.md          # 快速开始
-│   ├── PROJECT_STRUCTURE.md    # 项目结构说明
-│   └── FOLDER_ORGANIZATION.md  # 文件夹组织说明
+├── docs/                        # 📚 All documentation
+│   ├── DESIGN_DOCUMENT.md      # Design document
+│   ├── DEEPSEEK_MIGRATION.md   # DeepSeek migration
+│   ├── LLM_COST_COMPARISON.md  # Cost comparison
+│   ├── ENV_CHECKLIST.md        # Environment checklist
+│   ├── ENV_SETUP.md            # Environment setup guide
+│   ├── QUICK_START.md          # Quick start
+│   ├── PROJECT_STRUCTURE.md    # Project structure guide
+│   └── FOLDER_ORGANIZATION.md  # Folder organization guide
 │
-├── scripts/                     # 🛠️ 工具脚本
-│   ├── setup_env.sh            # 环境设置脚本
-│   ├── verify_env.py           # 环境验证脚本
-│   ├── environment.yml         # Conda 环境配置
-│   ├── test_bluesky_simple.py  # Bluesky 测试
-│   └── deriv_test.py           # Deriv API 测试
+├── scripts/                     # 🛠️ Utility scripts
+│   ├── setup_env.sh            # Environment setup script
+│   ├── verify_env.py           # Environment verification script
+│   ├── environment.yml         # Conda environment configuration
+│   ├── test_bluesky_simple.py  # Bluesky test
+│   └── deriv_test.py           # Deriv API test
 │
-└── dev/                         # 🎨 开发资源
-    ├── diagrams/               # 架构图表（PNG）
-    └── docs/                   # 原始文档（PDF）
+└── dev/                         # 🎨 Development resources
+    ├── diagrams/               # Architecture diagrams (PNG)
+    └── docs/                   # Original documents (PDF)
 ```
 
-## 🎯 整理原则
+## 🎯 Organization Principles
 
-1. **文档集中化** - 所有 `.md` 文档放在 `docs/`
-2. **脚本集中化** - 所有脚本和配置文件放在 `scripts/`
-3. **代码分离** - 后端代码保持在 `backend/`
-4. **资源分离** - 开发资源保持在 `dev/`
-5. **根目录简洁** - 只保留 README 和必要配置文件
+1. **Documentation Centralized** - All `.md` documentation in `docs/`
+2. **Scripts Centralized** - All scripts and config files in `scripts/`
+3. **Code Separated** - Backend code remains in `backend/`
+4. **Resources Separated** - Development resources remain in `dev/`
+5. **Root Directory Clean** - Only README and essential config files remain
 
-## 🔄 路径更新说明
+## 🔄 Path Update Instructions
 
-### 脚本调用
+### Script Invocation
 
-**更新前：**
+**Before:**
 ```bash
 ./setup_env.sh
 python verify_env.py
 conda env create -f environment.yml
 ```
 
-**更新后：**
+**After:**
 ```bash
 ./scripts/setup_env.sh
 python scripts/verify_env.py
 conda env create -f scripts/environment.yml
 ```
 
-### 文档访问
+### Documentation Access
 
-所有文档现在统一在 `docs/` 目录，通过 README.md 链接访问。
+All documentation is now unified in the `docs/` directory, accessible via links in README.md.
 
-## ✅ 验证结果
+## ✅ Verification Results
 
-- ✅ 根目录已清理（只有 README.md）
-- ✅ 所有文档在 `docs/` 目录
-- ✅ 所有脚本在 `scripts/` 目录
-- ✅ 路径引用已更新
-- ✅ `.gitignore` 已优化
+- ✅ Root directory cleaned (only README.md remains)
+- ✅ All documentation in `docs/` directory
+- ✅ All scripts in `scripts/` directory
+- ✅ Path references updated
+- ✅ `.gitignore` optimized
 
-## 📝 下一步
+## 📝 Next Steps
 
-1. **使用新路径** - 所有脚本调用使用 `scripts/` 前缀
-2. **查看文档** - 通过 `docs/` 目录访问文档
-3. **继续开发** - 项目结构已优化，可以专注开发
+1. **Use New Paths** - All script invocations use `scripts/` prefix
+2. **View Documentation** - Access documentation via `docs/` directory
+3. **Continue Development** - Project structure optimized, focus on development
 
-## 🎉 整理完成！
+## 🎉 Cleanup Complete!
 
-项目结构现在更加专业和易于维护！
+Project structure is now more professional and easier to maintain!

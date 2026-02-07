@@ -1,15 +1,15 @@
-# Redis 需求分析
+# Redis Requirement Analysis
 
-## 🔍 项目中 Redis 的使用场景
+## 🔍 Redis Usage Scenarios in Project
 
 ### 1. Django Channels (WebSocket)
-项目使用了 Django Channels 进行实时通信：
+The project uses Django Channels for real-time communication:
 
-- ✅ **WebSocket 聊天** (`chat/consumers.py`)
-- ✅ **行为建议推送** (`behavior/websocket_utils.py`)
-- ✅ **交易摘要推送** (`behavior/views.py`)
+- ✅ **WebSocket Chat** (`chat/consumers.py`)
+- ✅ **Behavioral Advice Push** (`behavior/websocket_utils.py`)
+- ✅ **Trade Summary Push** (`behavior/views.py`)
 
-### 2. 当前配置
+### 2. Current Configuration
 
 ```python
 # backend/tradeiq/settings.py
@@ -20,61 +20,61 @@ CHANNEL_LAYERS = {
 }
 ```
 
-## 📊 Redis 是否需要？
+## 📊 Is Redis Required?
 
-### ✅ **不需要 Redis** 的情况
+### ✅ **Redis Not Required** Scenarios
 
-1. **开发环境（单进程）**
-   - `InMemoryChannelLayer` 完全够用
-   - 所有 WebSocket 连接在同一进程中
-   - 无需额外配置
+1. **Development Environment (Single Process)**
+   - `InMemoryChannelLayer` is sufficient
+   - All WebSocket connections in the same process
+   - No additional configuration needed
 
-2. **Hackathon Demo（单服务器）**
-   - 如果只部署一个 Django 进程
-   - `InMemoryChannelLayer` 可以工作
-   - 简单快速，无需额外服务
+2. **Hackathon Demo (Single Server)**
+   - If deploying only one Django process
+   - `InMemoryChannelLayer` works fine
+   - Simple and fast, no additional service needed
 
-### ⚠️ **需要 Redis** 的情况
+### ⚠️ **Redis Required** Scenarios
 
-1. **生产环境（多进程）**
-   - 使用 Gunicorn/Uvicorn 多 worker
-   - 多个进程需要共享 channel layer
-   - `InMemoryChannelLayer` 无法跨进程通信
+1. **Production Environment (Multi-Process)**
+   - Using Gunicorn/Uvicorn with multiple workers
+   - Multiple processes need shared channel layer
+   - `InMemoryChannelLayer` cannot communicate across processes
 
-2. **多服务器部署**
-   - 负载均衡多个 Django 实例
-   - 需要 Redis 作为消息代理
-   - 确保 WebSocket 消息能到达正确的服务器
+2. **Multi-Server Deployment**
+   - Load balancing multiple Django instances
+   - Need Redis as message broker
+   - Ensure WebSocket messages reach correct server
 
-3. **Celery 后台任务**（如果使用）
-   - 需要 Redis/RabbitMQ 作为 broker
-   - 当前项目未使用 Celery
+3. **Celery Background Tasks** (If Used)
+   - Need Redis/RabbitMQ as broker
+   - Current project does not use Celery
 
-## 🎯 推荐方案
+## 🎯 Recommended Solutions
 
-### 方案 1: 开发/Hackathon Demo（推荐）
+### Solution 1: Development/Hackathon Demo (Recommended)
 
-**不需要 Redis** - 使用 `InMemoryChannelLayer`
+**Redis Not Required** - Use `InMemoryChannelLayer`
 
-**优点：**
-- ✅ 零配置
-- ✅ 无需额外服务
-- ✅ 简单快速
+**Advantages:**
+- ✅ Zero configuration
+- ✅ No additional service needed
+- ✅ Simple and fast
 
-**限制：**
-- ❌ 只能单进程运行
-- ❌ 无法横向扩展
+**Limitations:**
+- ❌ Can only run single process
+- ❌ Cannot scale horizontally
 
-**适用场景：**
-- 本地开发
-- Hackathon demo（单服务器）
-- 小型应用
+**Use Cases:**
+- Local development
+- Hackathon demo (single server)
+- Small applications
 
-### 方案 2: 生产环境
+### Solution 2: Production Environment
 
-**需要 Redis** - 使用 Redis Channel Layer
+**Redis Required** - Use Redis Channel Layer
 
-**配置示例：**
+**Configuration Example:**
 ```python
 # backend/tradeiq/settings.py
 CHANNEL_LAYERS = {
@@ -82,40 +82,40 @@ CHANNEL_LAYERS = {
         "BACKEND": "channels_redis.core.RedisChannelLayer",
         "CONFIG": {
             "hosts": [("127.0.0.1", 6379)],
-            # 或使用环境变量
+            # Or use environment variable
             # "hosts": [os.environ.get("REDIS_URL", "redis://localhost:6379/0")],
         },
     },
 }
 ```
 
-**需要安装：**
+**Installation Required:**
 ```bash
 pip install channels-redis
 ```
 
-**优点：**
-- ✅ 支持多进程/多服务器
-- ✅ 可横向扩展
-- ✅ 生产环境标准配置
+**Advantages:**
+- ✅ Supports multi-process/multi-server
+- ✅ Can scale horizontally
+- ✅ Standard production configuration
 
-**缺点：**
-- ❌ 需要运行 Redis 服务
-- ❌ 增加部署复杂度
+**Disadvantages:**
+- ❌ Requires Redis service
+- ❌ Increases deployment complexity
 
-## 💡 针对 TradeIQ 项目的建议
+## 💡 Recommendations for TradeIQ Project
 
-### Hackathon Demo 阶段
+### Hackathon Demo Phase
 
-**✅ 不需要 Redis**
+**✅ Redis Not Required**
 
-理由：
-1. Demo 通常是单服务器部署
-2. `InMemoryChannelLayer` 完全够用
-3. 减少部署复杂度
-4. 节省资源（Redis 需要额外服务）
+Reasons:
+1. Demo is typically single-server deployment
+2. `InMemoryChannelLayer` is sufficient
+3. Reduces deployment complexity
+4. Saves resources (Redis requires additional service)
 
-**当前配置已经足够：**
+**Current configuration is sufficient:**
 ```python
 CHANNEL_LAYERS = {
     "default": {
@@ -124,34 +124,34 @@ CHANNEL_LAYERS = {
 }
 ```
 
-### 生产环境（如果后续部署）
+### Production Environment (If Deploying Later)
 
-**⚠️ 需要 Redis**
+**⚠️ Redis Required**
 
-如果计划：
-- 多进程部署（Gunicorn workers）
-- 负载均衡多个服务器
-- 高并发 WebSocket 连接
+If planning:
+- Multi-process deployment (Gunicorn workers)
+- Load balancing multiple servers
+- High concurrency WebSocket connections
 
-则需要配置 Redis。
+Then Redis configuration is needed.
 
-## 📋 检查清单
+## 📋 Checklist
 
-### 当前项目状态
+### Current Project Status
 
-- [x] WebSocket 功能已实现
-- [x] 使用 `InMemoryChannelLayer`
-- [x] 适合单进程开发/demo
-- [ ] Redis 配置（**不需要**）
+- [x] WebSocket functionality implemented
+- [x] Using `InMemoryChannelLayer`
+- [x] Suitable for single-process development/demo
+- [ ] Redis configuration (**Not Required**)
 
-### 如果未来需要 Redis
+### If Redis Needed in Future
 
-1. **安装依赖：**
+1. **Install Dependency:**
    ```bash
    pip install channels-redis
    ```
 
-2. **更新 settings.py：**
+2. **Update settings.py:**
    ```python
    CHANNEL_LAYERS = {
        "default": {
@@ -163,37 +163,37 @@ CHANNEL_LAYERS = {
    }
    ```
 
-3. **添加 .env：**
+3. **Add to .env:**
    ```bash
    REDIS_URL=redis://localhost:6379/0
    ```
 
-4. **运行 Redis：**
-   - 本地：`docker run -d -p 6379:6379 redis`
-   - 云服务：Upstash Redis（免费 tier）
+4. **Run Redis:**
+   - Local: `docker run -d -p 6379:6379 redis`
+   - Cloud: Upstash Redis (free tier)
 
-## 🎯 结论
+## 🎯 Conclusion
 
-### 对于 Hackathon Demo
+### For Hackathon Demo
 
-**✅ 不需要 Redis**
+**✅ Redis Not Required**
 
-- 当前 `InMemoryChannelLayer` 配置完全够用
-- 无需额外配置或服务
-- 可以专注于功能开发
+- Current `InMemoryChannelLayer` configuration is sufficient
+- No additional configuration or service needed
+- Can focus on feature development
 
-### 对于生产环境
+### For Production Environment
 
-**⚠️ 需要 Redis**
+**⚠️ Redis Required**
 
-- 如果计划多进程/多服务器部署
-- 需要横向扩展能力
-- 可以后续再添加
+- If planning multi-process/multi-server deployment
+- Need horizontal scaling capability
+- Can be added later
 
-## 🚀 快速决策
+## 🚀 Quick Decision
 
-**问自己：**
-- Demo 是单服务器吗？ → **不需要 Redis** ✅
-- 需要多进程/多服务器吗？ → **需要 Redis** ⚠️
+**Ask Yourself:**
+- Is demo single-server? → **Redis Not Required** ✅
+- Need multi-process/multi-server? → **Redis Required** ⚠️
 
-**当前建议：不需要 Redis，保持现有配置即可。**
+**Current Recommendation: Redis not required, keep existing configuration.**

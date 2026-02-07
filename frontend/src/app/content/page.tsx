@@ -17,13 +17,13 @@ export default function ContentPage() {
 
   return (
     <AppShell>
-      <div className="p-4 space-y-4">
+      <div className="p-6 md:p-8 space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-4">
             <div>
-              <h1 className="text-lg font-bold text-white tracking-tight">Content Engine</h1>
-              <p className="text-[11px] text-muted mono-data mt-0.5">
+              <h1 className="text-xl font-bold text-white tracking-tight">Content Engine</h1>
+              <p className="text-xs text-muted mono-data mt-1">
                 AI-powered social media content generation for Bluesky
               </p>
             </div>
@@ -33,7 +33,7 @@ export default function ContentPage() {
         </div>
 
         {/* Stats Row */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <DataCard title="Posts Generated" value={String(stats.postsGenerated)} subtitle="This week" trend="up" />
           <DataCard title="Published" value={String(stats.published)} subtitle={`${stats.published} posts`} trend="up" />
           <DataCard title="Engagement" value={String(stats.engagement)} subtitle="Likes + Reposts" trend="up" glow />
@@ -43,7 +43,7 @@ export default function ContentPage() {
         </div>
 
         {/* Main Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
           {/* Content Workbench */}
           <div className="lg:col-span-3">
             <ContentWorkbench personas={personas} />

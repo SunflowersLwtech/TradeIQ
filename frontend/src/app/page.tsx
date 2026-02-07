@@ -29,16 +29,16 @@ export default function DashboardPage() {
 
   return (
     <AppShell>
-      <div className="p-4 space-y-4">
+      <div className="p-6 md:p-8 space-y-6">
         {/* Tab Navigation */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-4">
           <div className="flex items-center gap-0 border border-border rounded-sm overflow-hidden w-fit">
             {tabs.map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
                 className={cn(
-                  "px-4 py-2 text-[10px] font-medium tracking-wider mono-data transition-colors border-r border-border last:border-r-0",
+                  "px-5 py-2.5 text-xs font-medium tracking-wider mono-data transition-colors border-r border-border last:border-r-0",
                   activeTab === tab.id
                     ? "bg-white text-black"
                     : "bg-transparent text-muted hover:text-white hover:bg-surface"
@@ -51,12 +51,12 @@ export default function DashboardPage() {
           <DataSourceBadge isUsingMock={metricsIsMock} isBackendOnline={isBackendOnline} />
         </div>
 
-        <p className="text-[11px] text-muted mono-data">
+        <p className="text-xs text-muted mono-data">
           Real-time AI-powered trading intelligence dashboard. All analysis is educational — not financial advice.
         </p>
 
         {/* Key Metrics Row */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <DataCard
             title="Portfolio Value"
             value={`$${metrics.portfolioValue.toLocaleString("en-US", { minimumFractionDigits: 2 })}`}
@@ -106,17 +106,17 @@ export default function DashboardPage() {
         </div>
 
         {/* Main Content Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
           <div className="lg:col-span-2">
-            <PnLChart height={280} />
+            <PnLChart height={300} />
           </div>
 
-          <div className="space-y-3">
-            <div className="bg-card border border-border rounded-sm p-4">
-              <h3 className="text-[10px] font-semibold tracking-wider text-muted uppercase mono-data mb-3">
+          <div className="space-y-4">
+            <div className="bg-card border border-border rounded-sm p-5">
+              <h3 className="text-xs font-semibold tracking-wider text-muted uppercase mono-data mb-4">
                 QUICK ACTIONS
               </h3>
-              <div className="space-y-2">
+              <div className="space-y-2.5">
                 <QuickActionButton label="RUN MARKET BRIEF" description="AI analysis of tracked instruments" icon="📊" onClick={() => router.push("/market")} />
                 <QuickActionButton label="CHECK BEHAVIOR" description="Scan current trading patterns" icon="🧠" onClick={() => router.push("/behavior")} />
                 <QuickActionButton label="GENERATE CONTENT" description="Create Bluesky post from insights" icon="✍️" onClick={() => router.push("/content")} />
@@ -129,7 +129,7 @@ export default function DashboardPage() {
               defaultOpen
               badge={<DataSourceBadge isUsingMock={insightsIsMock} />}
             >
-              <div className="p-3 space-y-2">
+              <div className="p-4 space-y-3">
                 {insights.map((insight) => {
                   const typeMap: Record<string, "market" | "behavior" | "content"> = {
                     technical: "market", news: "market", sentiment: "market",
@@ -159,17 +159,17 @@ export default function DashboardPage() {
 function QuickActionButton({ label, description, icon, highlight, onClick }: { label: string; description: string; icon: string; highlight?: boolean; onClick?: () => void }) {
   return (
     <button onClick={onClick} className={cn(
-      "w-full flex items-center gap-3 p-3 rounded-sm border transition-all text-left group",
+      "w-full flex items-center gap-3.5 p-3.5 rounded-sm border transition-all text-left group",
       highlight
         ? "border-profit/30 bg-profit/5 hover:bg-profit/10 hover:border-profit/50"
         : "border-border bg-surface hover:bg-surface-hover hover:border-muted"
     )}>
-      <span className="text-lg">{icon}</span>
+      <span className="text-xl">{icon}</span>
       <div>
-        <span className={cn("text-[10px] font-semibold tracking-wider mono-data block", highlight ? "text-profit" : "text-white")}>{label}</span>
-        <span className="text-[9px] text-muted-foreground">{description}</span>
+        <span className={cn("text-xs font-semibold tracking-wider mono-data block", highlight ? "text-profit" : "text-white")}>{label}</span>
+        <span className="text-[10px] text-muted-foreground mt-0.5 block">{description}</span>
       </div>
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="ml-auto text-muted-foreground group-hover:text-white transition-colors">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="ml-auto text-muted-foreground group-hover:text-white transition-colors">
         <path d="M9 18l6-6-6-6" />
       </svg>
     </button>
@@ -180,11 +180,11 @@ function InsightItem({ type, text, time }: { type: "market" | "behavior" | "cont
   const colorMap = { market: "text-accent border-accent/30", behavior: "text-warning border-warning/30", content: "text-cyan border-cyan/30" };
   const labelMap = { market: "MKT", behavior: "BHV", content: "CTN" };
   return (
-    <div className="flex gap-2 items-start">
-      <span className={cn("text-[8px] font-bold mono-data tracking-wider mt-0.5 px-1 py-0.5 border rounded-sm shrink-0", colorMap[type])}>{labelMap[type]}</span>
+    <div className="flex gap-3 items-start">
+      <span className={cn("text-[9px] font-bold mono-data tracking-wider mt-0.5 px-1.5 py-0.5 border rounded-sm shrink-0", colorMap[type])}>{labelMap[type]}</span>
       <div className="flex-1 min-w-0">
-        <p className="text-[10px] text-muted leading-relaxed">{text}</p>
-        <span className="text-[8px] text-muted-foreground mono-data">{time}</span>
+        <p className="text-xs text-muted leading-relaxed">{text}</p>
+        <span className="text-[10px] text-muted-foreground mono-data mt-0.5 block">{time}</span>
       </div>
     </div>
   );

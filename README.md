@@ -2,24 +2,24 @@
 
 > The Bloomberg Terminal for retail traders, the trading coach they never had, and the content team they always wanted.
 
-## 🚀 快速开始
+## 🚀 Quick Start
 
-### 1. 环境设置
+### 1. Environment Setup
 
 ```bash
-# 使用自动化脚本（推荐）
+# Using automated script (recommended)
 ./scripts/setup_env.sh
 
-# 或手动创建
+# Or manually create
 conda env create -f scripts/environment.yml
 conda activate tradeiq
 ```
 
-### 2. 配置环境变量
+### 2. Configure Environment Variables
 
-确保 `.env` 文件已配置（见 `docs/ENV_CHECKLIST.md`）
+Ensure `.env` file is configured (see `docs/ENV_CHECKLIST.md`)
 
-### 3. 运行项目
+### 3. Run the Project
 
 ```bash
 cd backend
@@ -27,21 +27,21 @@ python manage.py migrate
 python manage.py runserver
 ```
 
-访问：http://localhost:8000
+Visit: http://localhost:8000
 
-## 📁 项目结构
+## 📁 Project Structure
 
 ```
 tradeiq/
-├── backend/              # Django 后端应用
-│   ├── agents/           # AI Agent 路由和工具
-│   ├── behavior/        # 行为分析模块
-│   ├── market/           # 市场分析模块
-│   ├── content/          # 内容生成模块
-│   ├── chat/             # WebSocket 聊天
-│   └── demo/             # 演示工具
+├── backend/              # Django backend application
+│   ├── agents/           # AI Agent routing and tools
+│   ├── behavior/        # Behavioral analysis module
+│   ├── market/           # Market analysis module
+│   ├── content/          # Content generation module
+│   ├── chat/             # WebSocket chat
+│   └── demo/             # Demo tools
 │
-├── docs/                 # 项目文档
+├── docs/                 # Project documentation
 │   ├── DESIGN_DOCUMENT.md
 │   ├── DEEPSEEK_MIGRATION.md
 │   ├── LLM_COST_COMPARISON.md
@@ -50,28 +50,28 @@ tradeiq/
 │   ├── QUICK_START.md
 │   └── ...
 │
-├── scripts/              # 工具脚本
-│   ├── setup_env.sh      # 环境设置脚本
-│   ├── verify_env.py     # 环境验证脚本
-│   ├── environment.yml   # Conda 环境配置
-│   └── test_*.py         # 测试脚本
+├── scripts/              # Utility scripts
+│   ├── setup_env.sh      # Environment setup script
+│   ├── verify_env.py     # Environment verification script
+│   ├── environment.yml   # Conda environment configuration
+│   └── test_*.py         # Test scripts
 │
-├── dev/                  # 开发资源
-│   ├── diagrams/         # 架构图表
-│   └── docs/             # 原始设计文档
+├── dev/                  # Development resources
+│   ├── diagrams/         # Architecture diagrams
+│   └── docs/             # Original design documents
 │
-├── .env                  # 环境变量（不提交到 Git）
+├── .env                  # Environment variables (not committed to Git)
 ├── .gitignore
-└── README.md             # 本文件
+└── README.md             # This file
 ```
 
-## 🎯 核心功能
+## 🎯 Core Features
 
-1. **Market Analysis** - 实时市场分析和解释
-2. **Behavioral Coaching** - 交易行为模式检测和建议
-3. **Social Content Engine** - AI 生成社交媒体内容
+1. **Market Analysis** - Real-time market analysis and explanations
+2. **Behavioral Coaching** - Trading behavior pattern detection and recommendations
+3. **Social Content Engine** - AI-generated social media content
 
-## 🛠️ 技术栈
+## 🛠️ Tech Stack
 
 - **Backend**: Django 5 + DRF + Channels
 - **AI/LLM**: DeepSeek-V3.2 (Function Calling)
@@ -79,28 +79,28 @@ tradeiq/
 - **WebSocket**: Django Channels (InMemoryChannelLayer)
 - **External APIs**: Deriv, NewsAPI, Bluesky
 
-## 📚 文档
+## 📚 Documentation
 
-- [快速开始指南](docs/QUICK_START.md)
-- [环境设置指南](docs/ENV_SETUP.md)
-- [设计文档](docs/DESIGN_DOCUMENT.md)
-- [DeepSeek 迁移说明](docs/DEEPSEEK_MIGRATION.md)
-- [LLM 成本对比](docs/LLM_COST_COMPARISON.md)
+- [Quick Start Guide](docs/QUICK_START.md)
+- [Environment Setup Guide](docs/ENV_SETUP.md)
+- [Design Document](docs/DESIGN_DOCUMENT.md)
+- [DeepSeek Migration Guide](docs/DEEPSEEK_MIGRATION.md)
+- [LLM Cost Comparison](docs/LLM_COST_COMPARISON.md)
 
-## 🔧 开发工具
+## 🔧 Development Tools
 
 ```bash
-# 验证环境
+# Verify environment
 python scripts/verify_env.py
 
-# 运行测试
+# Run tests
 cd backend
 python manage.py test
 
-# 加载演示数据
+# Load demo data
 python manage.py loaddata fixtures/demo_*.json
 ```
 
-## 📝 许可证
+## 📝 License
 
 Deriv AI Hackathon 2026

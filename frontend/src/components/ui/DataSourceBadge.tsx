@@ -9,7 +9,7 @@ interface DataSourceBadgeProps {
 }
 
 /**
- * Small indicator showing whether data comes from live backend or mock fallback.
+ * Small indicator showing whether data comes from live backend or fallback state.
  */
 export default function DataSourceBadge({ isUsingMock, isBackendOnline, className }: DataSourceBadgeProps) {
   return (
@@ -21,14 +21,14 @@ export default function DataSourceBadge({ isUsingMock, isBackendOnline, classNam
           : "border-profit/30 text-profit/70 bg-profit/5",
         className
       )}
-      title={isUsingMock ? "Using simulated data (backend offline)" : "Connected to live backend"}
+      title={isUsingMock ? "Using fallback state (backend unavailable or empty)" : "Connected to live backend"}
     >
       <span className={cn(
         "w-1 h-1 rounded-full",
         isUsingMock ? "bg-warning" : "bg-profit",
         !isUsingMock && "animate-pulse"
       )} />
-      {isUsingMock ? "MOCK" : "LIVE"}
+      {isUsingMock ? "FALLBACK" : "LIVE"}
       {isBackendOnline !== undefined && !isBackendOnline && isUsingMock && (
         <span className="text-muted-foreground"> · OFFLINE</span>
       )}

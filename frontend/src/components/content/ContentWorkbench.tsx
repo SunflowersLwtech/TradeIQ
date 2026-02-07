@@ -1,17 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
 import DisclaimerBadge from "@/components/ui/DisclaimerBadge";
 import LoadingDots from "@/components/ui/LoadingDots";
 import api from "@/lib/api";
 import type { PersonaDisplay } from "@/hooks/useContentData";
-
-const DEFAULT_PERSONAS: PersonaDisplay[] = [
-  { id: "calm_analyst", name: "The Calm Analyst", style: "Data-driven, precise, measured insights", icon: "📊" },
-  { id: "data_nerd", name: "The Data Nerd", style: "Stats-heavy, analytical, pattern-focused", icon: "🧮" },
-  { id: "trading_coach", name: "The Trading Coach", style: "Encouraging, educational, action-oriented", icon: "🎯" },
-];
 
 interface ContentWorkbenchProps {
   className?: string;
@@ -19,14 +13,20 @@ interface ContentWorkbenchProps {
 }
 
 export default function ContentWorkbench({ className, personas: externalPersonas }: ContentWorkbenchProps) {
-  const personas = externalPersonas && externalPersonas.length > 0 ? externalPersonas : DEFAULT_PERSONAS;
+  const personas = useMemo(() => externalPersonas || [], [externalPersonas]);
   const [insight, setInsight] = useState("");
   const [platform, setPlatform] = useState<"bluesky_post" | "bluesky_thread">("bluesky_post");
-  const [selectedPersona, setSelectedPersona] = useState(personas[0]?.id || "calm_analyst");
+  const [selectedPersona, setSelectedPersona] = useState("");
   const [generatedContent, setGeneratedContent] = useState<string>("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
   const [publishResult, setPublishResult] = useState<{ message: string; uri?: string } | null>(null);
+
+  useEffect(() => {
+    if (!selectedPersona && personas.length > 0) {
+      setSelectedPersona(personas[0].id);
+    }
+  }, [personas, selectedPersona]);
 
   const handleGenerate = async () => {
     if (!insight.trim()) return;
@@ -42,9 +42,7 @@ export default function ContentWorkbench({ className, personas: externalPersonas
       });
       setGeneratedContent(response.content);
     } catch {
-      setGeneratedContent(
-        `📊 Market Update: ${insight.trim()}\n\nThe data suggests interesting dynamics at play. Key levels to watch as we navigate this movement.\n\n⚠️ Not financial advice. DYOR.\n\n#Trading #MarketAnalysis #TradeIQ`
-      );
+      setPublishResult({ message: "Content generation failed. Check API availability and persona configuration." });
     } finally {
       setIsGenerating(false);
     }
@@ -56,10 +54,11 @@ export default function ContentWorkbench({ className, personas: externalPersonas
 
     try {
       const result = await api.publishToBluesky(generatedContent, platform === "bluesky_thread" ? "thread" : "single");
-      if (result.success && result.uri) {
+      const primaryUri = result.uri || result.results?.[0]?.url || result.results?.[0]?.uri;
+      if (result.success && primaryUri) {
         setPublishResult({
           message: "Published to Bluesky successfully!",
-          uri: result.uri,
+          uri: primaryUri,
         });
       } else {
         setPublishResult({
@@ -151,16 +150,21 @@ export default function ContentWorkbench({ className, personas: externalPersonas
               </button>
             ))}
           </div>
+          {personas.length === 0 && (
+            <div className="text-[10px] text-muted mono-data mt-2">
+              No personas found in database. Create personas in Supabase first.
+            </div>
+          )}
         </div>
 
         {/* Generate Button */}
         <button
           onClick={handleGenerate}
-          disabled={!insight.trim() || isGenerating}
+          disabled={!insight.trim() || isGenerating || !selectedPersona}
           className={cn(
             "w-full mt-3 py-2.5 rounded-sm text-[10px] font-semibold tracking-wider mono-data",
             "transition-all duration-200",
-            insight.trim() && !isGenerating
+            insight.trim() && !isGenerating && selectedPersona
               ? "bg-white text-black hover:bg-gray-200"
               : "bg-border text-muted-foreground cursor-not-allowed"
           )}

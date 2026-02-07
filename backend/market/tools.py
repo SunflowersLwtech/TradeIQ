@@ -8,6 +8,7 @@ from agents.prompts import SYSTEM_PROMPT_MARKET
 from .models import MarketInsight
 import json
 import os
+import math
 import requests
 import asyncio
 import threading
@@ -33,6 +34,15 @@ DERIV_SYMBOLS = {
     "V100": "R_100",
     "Volatility 10": "R_10",
     "V10": "R_10",
+}
+
+TIMEFRAME_TO_GRANULARITY = {
+    "1m": 60,
+    "5m": 300,
+    "15m": 900,
+    "1h": 3600,
+    "4h": 14400,
+    "1d": 86400,
 }
 
 
@@ -151,6 +161,124 @@ def fetch_price_data(instrument: str) -> Dict[str, Any]:
             "timestamp": datetime.now().isoformat(),
             "source": "deriv"
         }
+
+
+async def _fetch_deriv_history_async(
+    instrument: str,
+    granularity: int,
+    count: int,
+) -> Dict[str, Any]:
+    """Fetch OHLC candle history from Deriv WebSocket API."""
+    try:
+        import websockets
+    except ImportError:
+        return {
+            "instrument": instrument,
+            "candles": [],
+            "error": "websockets package not installed",
+            "source": "deriv",
+        }
+
+    app_id = os.environ.get("DERIV_APP_ID", "125489")
+    deriv_symbol = _get_deriv_symbol(instrument)
+    ws_url = f"wss://ws.derivws.com/websockets/v3?app_id={app_id}"
+
+    request_payload = {
+        "ticks_history": deriv_symbol,
+        "adjust_start_time": 1,
+        "count": max(10, min(count, 500)),
+        "end": "latest",
+        "style": "candles",
+        "granularity": granularity,
+    }
+
+    try:
+        async with websockets.connect(ws_url, close_timeout=5) as ws:
+            await ws.send(json.dumps(request_payload))
+            response = await asyncio.wait_for(ws.recv(), timeout=10)
+            data = json.loads(response)
+            if "error" in data:
+                return {
+                    "instrument": instrument,
+                    "candles": [],
+                    "error": data["error"].get("message", "Unknown error"),
+                    "source": "deriv",
+                }
+
+            candles = data.get("candles", []) or []
+            normalized = []
+            for candle in candles:
+                epoch = candle.get("epoch")
+                if epoch is None:
+                    continue
+                normalized.append(
+                    {
+                        "time": datetime.fromtimestamp(epoch, tz=timezone.utc).isoformat(),
+                        "open": float(candle.get("open", 0.0)),
+                        "high": float(candle.get("high", 0.0)),
+                        "low": float(candle.get("low", 0.0)),
+                        "close": float(candle.get("close", 0.0)),
+                    }
+                )
+
+            return {
+                "instrument": instrument,
+                "deriv_symbol": deriv_symbol,
+                "candles": normalized,
+                "source": "deriv",
+            }
+    except Exception as exc:
+        return {
+            "instrument": instrument,
+            "candles": [],
+            "error": str(exc),
+            "source": "deriv",
+        }
+
+
+def fetch_price_history(
+    instrument: str,
+    timeframe: str = "1h",
+    count: int = 120,
+) -> Dict[str, Any]:
+    """Fetch historical candles for charting and technical analysis."""
+    granularity = TIMEFRAME_TO_GRANULARITY.get(timeframe, 3600)
+    try:
+        result = _run_async_in_new_thread(
+            _fetch_deriv_history_async(
+                instrument=instrument,
+                granularity=granularity,
+                count=count,
+            )
+        )
+    except Exception as exc:
+        return {
+            "instrument": instrument,
+            "timeframe": timeframe,
+            "candles": [],
+            "error": str(exc),
+            "source": "deriv",
+        }
+
+    candles = result.get("candles", []) or []
+    if len(candles) >= 2:
+        first = candles[0]["close"]
+        last = candles[-1]["close"]
+        change = last - first
+        change_percent = (change / first * 100.0) if first else 0.0
+    else:
+        change = 0.0
+        change_percent = 0.0
+
+    return {
+        "instrument": instrument,
+        "timeframe": timeframe,
+        "candles": candles,
+        "change": round(change, 6),
+        "change_percent": round(change_percent, 4),
+        "source": "deriv",
+        "error": result.get("error"),
+    }
 
 
 def _search_newsapi(query: str, limit: int) -> List[Dict[str, Any]]:
@@ -283,58 +411,98 @@ def search_news(query: str, limit: int = 5) -> List[Dict[str, Any]]:
 
 def analyze_technicals(instrument: str, timeframe: str = "1h") -> Dict[str, Any]:
     """
-    Analyze technical indicators for an instrument using DeepSeek.
+    Analyze technical indicators for an instrument using real Deriv candle data.
     """
-    price_data = fetch_price_data(instrument)
-    price = price_data.get("price")
-
-    if not price:
+    history = fetch_price_history(instrument=instrument, timeframe=timeframe, count=120)
+    candles = history.get("candles", []) or []
+    if len(candles) < 20:
         return {
             "instrument": instrument,
             "timeframe": timeframe,
             "indicators": {},
-            "summary": "Price data unavailable for technical analysis."
+            "summary": history.get("error") or "Insufficient candle history for technical analysis.",
+            "source": "deriv",
         }
 
-    llm = get_llm_client()
-    prompt = f"""Based on the current price of {instrument} at {price}, provide a brief technical analysis summary.
+    closes = [float(c["close"]) for c in candles]
+    current_price = closes[-1]
+    sma20 = sum(closes[-20:]) / 20
+    sma50 = sum(closes[-50:]) / 50 if len(closes) >= 50 else None
 
-Note: Without historical candle data, provide general context about typical technical levels.
-Include: general trend context, key psychological levels, and typical volatility.
+    # RSI(14)
+    gains = []
+    losses = []
+    for i in range(1, len(closes)):
+        delta = closes[i] - closes[i - 1]
+        gains.append(max(delta, 0))
+        losses.append(abs(min(delta, 0)))
+    period = 14
+    avg_gain = sum(gains[-period:]) / period if len(gains) >= period else 0.0
+    avg_loss = sum(losses[-period:]) / period if len(losses) >= period else 0.0
+    if avg_loss == 0:
+        rsi14 = 100.0 if avg_gain > 0 else 50.0
+    else:
+        rs = avg_gain / avg_loss
+        rsi14 = 100 - (100 / (1 + rs))
 
-Return a JSON object:
-{{
-  "trend": "bullish" | "bearish" | "neutral",
-  "key_levels": {{"support": <number>, "resistance": <number>}},
-  "volatility": "low" | "medium" | "high",
-  "summary": "<1-2 sentence summary>"
-}}"""
+    # Volatility via standard deviation of returns over last 20 bars
+    returns = []
+    for i in range(1, len(closes)):
+        prev = closes[i - 1]
+        if prev:
+            returns.append((closes[i] - prev) / prev)
+    recent_returns = returns[-20:] if len(returns) >= 20 else returns
+    if recent_returns:
+        mean_ret = sum(recent_returns) / len(recent_returns)
+        variance = sum((r - mean_ret) ** 2 for r in recent_returns) / len(recent_returns)
+        vol = math.sqrt(variance)
+    else:
+        vol = 0.0
 
-    try:
-        response = llm.simple_chat(
-            system_prompt=SYSTEM_PROMPT_MARKET,
-            user_message=prompt,
-            temperature=0.3,
-            max_tokens=300
-        )
-        response_text = response.strip()
-        if response_text.startswith("```json"):
-            response_text = response_text.split("```json")[1].split("```")[0].strip()
-        elif response_text.startswith("```"):
-            response_text = response_text.split("```")[1].split("```")[0].strip()
+    if vol < 0.0025:
+        volatility = "low"
+    elif vol < 0.0075:
+        volatility = "medium"
+    else:
+        volatility = "high"
 
-        result = json.loads(response_text)
-        result["instrument"] = instrument
-        result["timeframe"] = timeframe
-        result["current_price"] = price
-        return result
-    except Exception as e:
-        return {
-            "instrument": instrument,
-            "timeframe": timeframe,
-            "indicators": {},
-            "summary": f"Technical analysis error: {str(e)}"
-        }
+    if sma50 is None:
+        trend = "neutral"
+    elif current_price > sma20 > sma50:
+        trend = "bullish"
+    elif current_price < sma20 < sma50:
+        trend = "bearish"
+    else:
+        trend = "neutral"
+
+    recent_window = candles[-20:]
+    support = min(float(c["low"]) for c in recent_window)
+    resistance = max(float(c["high"]) for c in recent_window)
+
+    summary = (
+        f"{instrument} on {timeframe}: trend is {trend} with RSI14 at {rsi14:.1f}. "
+        f"Nearest support/resistance from recent candles: {support:.4f} / {resistance:.4f}. "
+        f"Observed volatility is {volatility}."
+    )
+
+    return {
+        "instrument": instrument,
+        "timeframe": timeframe,
+        "current_price": current_price,
+        "trend": trend,
+        "volatility": volatility,
+        "key_levels": {
+            "support": round(support, 6),
+            "resistance": round(resistance, 6),
+        },
+        "indicators": {
+            "sma20": round(sma20, 6),
+            "sma50": round(sma50, 6) if sma50 is not None else None,
+            "rsi14": round(rsi14, 2),
+        },
+        "summary": summary,
+        "source": "deriv",
+    }
 
 
 def get_sentiment(instrument: str) -> Dict[str, Any]:
@@ -493,14 +661,41 @@ def generate_market_brief(instruments: List[str] = None) -> Dict[str, Any]:
         Market brief with summaries
     """
     if not instruments:
-        instruments = ["EUR/USD", "GBP/USD", "BTC/USD", "GOLD"]
+        discovered: List[str] = []
+        try:
+            from behavior.models import UserProfile, Trade
+
+            for profile in UserProfile.objects.all().only("watchlist"):
+                watchlist = profile.watchlist if isinstance(profile.watchlist, list) else []
+                discovered.extend([item for item in watchlist if isinstance(item, str) and item.strip()])
+
+            recent_trades = (
+                Trade.objects.order_by("-opened_at", "-created_at")
+                .values_list("instrument", flat=True)[:50]
+            )
+            discovered.extend([inst for inst in recent_trades if inst])
+        except Exception:
+            discovered = []
+
+        instruments = list(dict.fromkeys(discovered))
+
+    if not instruments:
+        return {
+            "summary": "No instruments available from database watchlists or recent trades.",
+            "instruments": [],
+            "timestamp": datetime.now().isoformat(),
+            "source": "database",
+        }
 
     instrument_data = []
     for inst in instruments[:6]:  # Max 6
         price = fetch_price_data(inst)
+        history = fetch_price_history(inst, timeframe="1h", count=24)
         instrument_data.append({
             "symbol": inst,
             "price": price.get("price"),
+            "change": history.get("change"),
+            "change_percent": history.get("change_percent"),
             "source": price.get("source", "deriv"),
         })
 

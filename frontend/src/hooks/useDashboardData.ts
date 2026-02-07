@@ -13,47 +13,50 @@ export interface DashboardMetrics {
   patternLabels: string[];
 }
 
-const MOCK_DASHBOARD: DashboardMetrics = {
-  portfolioValue: 10234.56,
-  todayPnl: 234.56,
-  todayPnlPercent: 2.34,
-  riskScore: 72,
-  activePatterns: 2,
-  patternLabels: ["OVERTRADING", "STREAK"],
+const EMPTY_DASHBOARD: DashboardMetrics = {
+  portfolioValue: 0,
+  todayPnl: 0,
+  todayPnlPercent: 0,
+  riskScore: 0,
+  activePatterns: 0,
+  patternLabels: [],
 };
 
 export function useDashboardMetrics() {
   const fetchMetrics = useCallback(async () => {
-    // Aggregate from multiple endpoints
     const [profilesResp, tradesResp, metricsResp] = await Promise.all([
-      api.getUserProfiles().catch(() => ({ results: [] })),
-      api.getTrades().catch(() => ({ results: [] })),
-      api.getBehavioralMetrics().catch(() => ({ results: [] })),
+      api.getUserProfiles(),
+      api.getTrades(),
+      api.getBehavioralMetrics(),
     ]);
 
     const profiles = Array.isArray(profilesResp) ? profilesResp : profilesResp.results || [];
     const trades = Array.isArray(tradesResp) ? tradesResp : tradesResp.results || [];
     const metrics = Array.isArray(metricsResp) ? metricsResp : metricsResp.results || [];
 
-    if (!profiles.length && !trades.length) throw new Error("No data");
+    const totalPnl = trades.reduce((acc, t) => acc + parseFloat(String(t.pnl || 0)), 0);
+    const today = new Date().toISOString().slice(0, 10);
+    const todayTrades = trades.filter((trade) => {
+      const opened = trade.opened_at || trade.created_at;
+      return opened && opened.slice(0, 10) === today;
+    });
+    const todayPnl = todayTrades.reduce((acc, t) => acc + parseFloat(String(t.pnl || 0)), 0);
 
-    const totalPnl = trades.reduce((acc, t) => acc + parseFloat(String(t.pnl)), 0);
-    const baseValue = 10000;
+    const initialBalance = Number(profiles[0]?.preferences?.initial_balance ?? 0);
+    const portfolioValue = initialBalance + totalPnl;
+    const todayPnlPercent = initialBalance > 0 ? (todayPnl / initialBalance) * 100 : 0;
 
-    // Extract patterns from latest metric
     const latestMetric = metrics[0];
     const patternFlags = latestMetric?.pattern_flags || {};
     const activePatterns = Object.entries(patternFlags)
-      .filter(([, v]) => v)
-      .map(([k]) => k.replace(/_/g, " ").toUpperCase());
-
-    const riskScore = latestMetric?.risk_score ?? 50;
+      .filter(([, detected]) => Boolean(detected))
+      .map(([name]) => name.replace(/_/g, " ").toUpperCase());
 
     return {
-      portfolioValue: baseValue + totalPnl,
-      todayPnl: totalPnl,
-      todayPnlPercent: baseValue > 0 ? (totalPnl / baseValue) * 100 : 0,
-      riskScore,
+      portfolioValue,
+      todayPnl,
+      todayPnlPercent,
+      riskScore: latestMetric?.risk_score ?? 0,
       activePatterns: activePatterns.length,
       patternLabels: activePatterns.length > 0 ? activePatterns : ["NONE"],
     };
@@ -61,12 +64,11 @@ export function useDashboardMetrics() {
 
   return useApiWithFallback<DashboardMetrics>({
     fetcher: fetchMetrics,
-    fallbackData: MOCK_DASHBOARD,
+    fallbackData: EMPTY_DASHBOARD,
     pollInterval: 15000,
   });
 }
 
-// ── Backend health check ──
 export function useBackendHealth() {
   const checkHealth = useCallback(async () => {
     const res = await fetch(

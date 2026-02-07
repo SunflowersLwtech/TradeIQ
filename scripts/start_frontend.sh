@@ -3,7 +3,7 @@
 set -euo pipefail
 
 ENV_NAME="${TRADEIQ_CONDA_ENV:-tradeiq}"
-HOST="${TRADEIQ_FRONTEND_HOST:-127.0.0.1}"
+HOST="${TRADEIQ_FRONTEND_HOST:-localhost}"
 PORT="${TRADEIQ_FRONTEND_PORT:-3000}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

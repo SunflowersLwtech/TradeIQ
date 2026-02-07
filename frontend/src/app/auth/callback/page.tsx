@@ -7,26 +7,53 @@ export default function AuthCallbackPage() {
   const router = useRouter();
 
   useEffect(() => {
+    const searchParams = new URLSearchParams(window.location.search);
+    const code = searchParams.get("code");
+    const oauthError = searchParams.get("error");
+    const oauthErrorDescription = searchParams.get("error_description");
+
+    const redirectToLogin = (error: string, description?: string | null) => {
+      const params = new URLSearchParams();
+      params.set("error", error);
+      if (description) {
+        params.set("oauth_error_description", description);
+      }
+      router.replace(`/login?${params.toString()}`);
+    };
+
     const handleCallback = async () => {
+      if (oauthError) {
+        redirectToLogin(oauthError, oauthErrorDescription);
+        return;
+      }
+
+      if (!code) {
+        redirectToLogin("missing_code");
+        return;
+      }
+
       try {
         const { createClient } = await import("@/lib/supabase/client");
         const supabase = createClient();
 
-        const { error } = await supabase.auth.getSession();
+        const { error } = await supabase.auth.exchangeCodeForSession(code);
         if (error) {
           console.error("Auth callback error:", error);
-          router.push("/login?error=auth_failed");
+          redirectToLogin("callback_failed", error.message);
           return;
         }
 
-        router.push("/");
+        router.replace("/");
       } catch (error) {
         console.error("Callback processing error:", error);
-        router.push("/login?error=callback_failed");
+        redirectToLogin(
+          "callback_failed",
+          error instanceof Error ? error.message : "unknown_error"
+        );
       }
     };
 
-    handleCallback();
+    void handleCallback();
   }, [router]);
 
   return (

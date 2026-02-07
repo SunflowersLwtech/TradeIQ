@@ -1,10 +1,9 @@
 "use client";
 
-import { useCallback, useState, useEffect } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useApiWithFallback } from "./useApiWithFallback";
 import api from "@/lib/api";
 
-// ── Ticker data with simulated live updates ──
 export interface TickerItem {
   symbol: string;
   price: number;
@@ -12,82 +11,6 @@ export interface TickerItem {
   icon: string;
 }
 
-const MOCK_TICKERS: TickerItem[] = [
-  { symbol: "EUR/USD", price: 1.0842, change: 0.12, icon: "\ud83d\udcb6" },
-  { symbol: "GBP/USD", price: 1.2645, change: -0.08, icon: "\ud83d\udcb7" },
-  { symbol: "USD/JPY", price: 149.32, change: 0.24, icon: "\ud83d\udcb4" },
-  { symbol: "BTC/USD", price: 97523.45, change: 2.34, icon: "\u20bf" },
-  { symbol: "ETH/USD", price: 3245.67, change: -1.12, icon: "\u039e" },
-  { symbol: "Volatility 75", price: 452891.23, change: 0.56, icon: "\ud83d\udcca" },
-  { symbol: "Volatility 100", price: 1823.45, change: -0.34, icon: "\ud83d\udcc8" },
-  { symbol: "GOLD", price: 2845.30, change: 0.89, icon: "\ud83e\udd47" },
-];
-
-/** Simulates small random price movements */
-function simulatePriceUpdate(tickers: TickerItem[]): TickerItem[] {
-  return tickers.map((t) => {
-    const variance = t.price * 0.0002;
-    const delta = (Math.random() - 0.5) * 2 * variance;
-    return {
-      ...t,
-      price: Math.max(0, t.price + delta),
-      change: t.change + (Math.random() - 0.5) * 0.02,
-    };
-  });
-}
-
-export function useTickerData(updateInterval = 2000) {
-  const [tickers, setTickers] = useState<TickerItem[]>(MOCK_TICKERS);
-  const [isUsingMock, setIsUsingMock] = useState(true);
-
-  // Try to fetch from backend on mount
-  useEffect(() => {
-    let cancelled = false;
-    async function tryFetchPrices() {
-      try {
-        const instruments = ["EUR/USD", "GBP/USD", "USD/JPY", "BTC/USD", "ETH/USD"];
-        const pricePromises = instruments.map((inst) =>
-          api.getLivePrice(inst).catch(() => null)
-        );
-        const results = await Promise.all(pricePromises);
-        const valid = results.filter((r) => r && r.price !== null);
-        if (!cancelled && valid.length > 0) {
-          const iconMap: Record<string, string> = {
-            "EUR/USD": "\ud83d\udcb6", "GBP/USD": "\ud83d\udcb7", "USD/JPY": "\ud83d\udcb4",
-            "BTC/USD": "\u20bf", "ETH/USD": "\u039e",
-          };
-          const liveTickers = valid.map((p) => ({
-            symbol: p!.instrument,
-            price: p!.price!,
-            change: 0, // Deriv single tick doesn't include change
-            icon: iconMap[p!.instrument] || "\ud83d\udcca",
-          }));
-          // Merge live tickers with remaining mock ones
-          const liveSymbols = new Set(liveTickers.map((t) => t.symbol));
-          const remaining = MOCK_TICKERS.filter((t) => !liveSymbols.has(t.symbol));
-          setTickers([...liveTickers, ...remaining]);
-          setIsUsingMock(false);
-        }
-      } catch {
-        // Keep mock data
-      }
-    }
-    tryFetchPrices();
-    return () => { cancelled = true; };
-  }, []);
-
-  // Simulate updates (works for both mock and real data as continuous feed)
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setTickers((prev) => simulatePriceUpdate(prev));
-    }, updateInterval);
-    return () => clearInterval(interval);
-  }, [updateInterval]);
-
-  return { tickers, isUsingMock };
-}
-
-// ── Market Overview data ──
 export interface MarketOverviewItem {
   symbol: string;
   name: string;
@@ -98,43 +21,6 @@ export interface MarketOverviewItem {
   icon: string;
 }
 
-const MOCK_MARKET_DATA: MarketOverviewItem[] = [
-  { symbol: "EUR/USD", name: "Euro / US Dollar", price: 1.0842, change: 0.0012, changePercent: 0.11, volume: "5.2B", icon: "\ud83d\udcb6" },
-  { symbol: "GBP/USD", name: "British Pound / US Dollar", price: 1.2645, change: -0.0008, changePercent: -0.06, volume: "3.1B", icon: "\ud83d\udcb7" },
-  { symbol: "USD/JPY", name: "US Dollar / Japanese Yen", price: 149.32, change: 0.45, changePercent: 0.30, volume: "4.8B", icon: "\ud83d\udcb4" },
-  { symbol: "BTC/USD", name: "Bitcoin / US Dollar", price: 97523.45, change: 2345.67, changePercent: 2.46, volume: "28.4B", icon: "\u20bf" },
-  { symbol: "ETH/USD", name: "Ethereum / US Dollar", price: 3245.67, change: -45.23, changePercent: -1.37, volume: "12.1B", icon: "\u039e" },
-  { symbol: "V75", name: "Volatility 75 Index", price: 452891.23, change: 1234.56, changePercent: 0.27, volume: "N/A", icon: "\ud83d\udcca" },
-  { symbol: "GOLD", name: "Gold Spot", price: 2845.30, change: 12.45, changePercent: 0.44, volume: "182B", icon: "\ud83e\udd47" },
-  { symbol: "V100", name: "Volatility 100 Index", price: 1823.45, change: -5.67, changePercent: -0.31, volume: "N/A", icon: "\ud83d\udcc8" },
-];
-
-export function useMarketOverview() {
-  const fetchInsights = useCallback(async () => {
-    const response = await api.getMarketInsights();
-    const insights = Array.isArray(response) ? response : response.results || [];
-    if (insights && insights.length > 0) {
-      return insights.map((insight) => ({
-        symbol: insight.instrument,
-        name: insight.instrument,
-        price: 0,
-        change: 0,
-        changePercent: insight.confidence ? (insight.confidence - 0.5) * 10 : 0,
-        volume: "N/A",
-        icon: "\ud83d\udcca",
-      }));
-    }
-    throw new Error("No insights available");
-  }, []);
-
-  return useApiWithFallback<MarketOverviewItem[]>({
-    fetcher: fetchInsights,
-    fallbackData: MOCK_MARKET_DATA,
-    pollInterval: 30000,
-  });
-}
-
-// ── Market Insights (AI analysis) ──
 export interface InsightItem {
   id: string;
   instrument: string;
@@ -144,29 +30,171 @@ export interface InsightItem {
   time: string;
 }
 
-const MOCK_INSIGHTS: InsightItem[] = [
-  { id: "1", instrument: "EUR/USD", type: "technical", content: "EUR/USD showing bearish divergence on 4H RSI. Support at 1.0820.", time: "2m ago", sentiment: -0.3 },
-  { id: "2", instrument: "BTC/USD", type: "news", content: "BTC/USD crossed above 50-day SMA. Volume increasing.", time: "8m ago", sentiment: 0.6 },
-  { id: "3", instrument: "GOLD", type: "sentiment", content: "Gold sentiment turning bullish amid geopolitical uncertainty.", time: "15m ago", sentiment: 0.4 },
-];
+const FALLBACK_TICKERS: TickerItem[] = [];
+const FALLBACK_MARKET_DATA: MarketOverviewItem[] = [];
+const FALLBACK_INSIGHTS: InsightItem[] = [];
+
+const ICON_MAP: Record<string, string> = {
+  "EUR/USD": "💶",
+  "GBP/USD": "💷",
+  "USD/JPY": "💴",
+  "BTC/USD": "₿",
+  "ETH/USD": "Ξ",
+  GOLD: "🥇",
+  "Volatility 75": "📊",
+  "Volatility 100": "📈",
+};
+
+const NAME_MAP: Record<string, string> = {
+  "EUR/USD": "Euro / US Dollar",
+  "GBP/USD": "British Pound / US Dollar",
+  "USD/JPY": "US Dollar / Japanese Yen",
+  "BTC/USD": "Bitcoin / US Dollar",
+  "ETH/USD": "Ethereum / US Dollar",
+  GOLD: "Gold Spot",
+  "Volatility 75": "Volatility 75 Index",
+  "Volatility 100": "Volatility 100 Index",
+};
+
+async function getPreferredInstruments(): Promise<string[]> {
+  try {
+    const profilesResp = await api.getUserProfiles();
+    const profiles = Array.isArray(profilesResp) ? profilesResp : profilesResp.results || [];
+    const watchlist = profiles.flatMap((p) => (Array.isArray(p.watchlist) ? p.watchlist : []));
+    const unique = Array.from(new Set(watchlist.filter(Boolean)));
+    if (unique.length > 0) {
+      return unique.slice(0, 8);
+    }
+  } catch {
+    // ignore and fall through to market brief
+  }
+
+  const brief = await api.getMarketBrief();
+  return (brief.instruments || []).map((item) => item.symbol).filter(Boolean).slice(0, 8);
+}
+
+export function useTickerData(updateInterval = 5000) {
+  const [tickers, setTickers] = useState<TickerItem[]>(FALLBACK_TICKERS);
+  const [isUsingMock, setIsUsingMock] = useState(true);
+  const previousPricesRef = useRef<Record<string, number>>({});
+  const instrumentsRef = useRef<string[]>([]);
+  const instrumentsLoadedAtRef = useRef<number>(0);
+
+  const fetchTickers = useCallback(async () => {
+    const now = Date.now();
+    if (instrumentsRef.current.length === 0 || now - instrumentsLoadedAtRef.current > 60000) {
+      instrumentsRef.current = await getPreferredInstruments();
+      instrumentsLoadedAtRef.current = now;
+    }
+    const instruments = instrumentsRef.current;
+    const responses = await Promise.all(
+      instruments.map((symbol) => api.getLivePrice(symbol).catch(() => null))
+    );
+
+    const live = responses
+      .filter((item): item is NonNullable<typeof item> => !!item && item.price !== null)
+      .map((item) => {
+        const prev = previousPricesRef.current[item.instrument];
+        const next = item.price as number;
+        const pct = prev && prev !== 0 ? ((next - prev) / prev) * 100 : 0;
+        previousPricesRef.current[item.instrument] = next;
+
+        return {
+          symbol: item.instrument,
+          price: next,
+          change: pct,
+          icon: ICON_MAP[item.instrument] || "📊",
+        };
+      });
+
+    if (live.length === 0) {
+      throw new Error("No live ticker data available");
+    }
+
+    setTickers(live);
+    setIsUsingMock(false);
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const run = async () => {
+      try {
+        await fetchTickers();
+      } catch {
+        if (!cancelled) {
+          setTickers(FALLBACK_TICKERS);
+          setIsUsingMock(true);
+        }
+      }
+    };
+
+    run();
+    const interval = setInterval(run, updateInterval);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [fetchTickers, updateInterval]);
+
+  return { tickers, isUsingMock };
+}
+
+export function useMarketOverview() {
+  const fetchOverview = useCallback(async () => {
+    const brief = await api.getMarketBrief();
+    const instruments = brief.instruments || [];
+
+    return instruments.map((item) => ({
+      symbol: item.symbol,
+      name: NAME_MAP[item.symbol] || item.symbol,
+      price: item.price ?? 0,
+      change: item.change ?? 0,
+      changePercent: item.change_percent ?? 0,
+      volume: "N/A",
+      icon: ICON_MAP[item.symbol] || "📊",
+    }));
+  }, []);
+
+  return useApiWithFallback<MarketOverviewItem[]>({
+    fetcher: fetchOverview,
+    fallbackData: FALLBACK_MARKET_DATA,
+    pollInterval: 15000,
+  });
+}
 
 export function useMarketInsights() {
   const fetchInsights = useCallback(async () => {
     const response = await api.getMarketInsights();
     const raw = Array.isArray(response) ? response : response.results || [];
-    return raw.map((r) => ({
-      id: r.id,
-      instrument: r.instrument,
-      type: r.insight_type,
-      content: r.content,
-      sentiment: r.confidence ?? null,
-      time: new Date(r.created_at).toLocaleTimeString(),
+
+    return raw.map((item) => ({
+      id: item.id,
+      instrument: item.instrument,
+      type: item.insight_type,
+      content: item.content,
+      sentiment: item.sentiment_score ?? item.confidence ?? null,
+      time: new Date(item.generated_at || item.created_at || Date.now()).toLocaleTimeString(),
     }));
   }, []);
 
   return useApiWithFallback<InsightItem[]>({
     fetcher: fetchInsights,
-    fallbackData: MOCK_INSIGHTS,
+    fallbackData: FALLBACK_INSIGHTS,
+    pollInterval: 30000,
+  });
+}
+
+export function useInstrumentUniverse() {
+  const fetchInstruments = useCallback(async () => {
+    const brief = await api.getMarketBrief();
+    const symbols = (brief.instruments || []).map((item) => item.symbol).filter(Boolean);
+    return Array.from(new Set(symbols));
+  }, []);
+
+  return useApiWithFallback<string[]>({
+    fetcher: fetchInstruments,
+    fallbackData: [],
     pollInterval: 60000,
   });
 }

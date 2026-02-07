@@ -29,7 +29,7 @@ export default function DataCard({
     <div
       onClick={onClick}
       className={cn(
-        "bg-card border border-border rounded-sm p-4 transition-all duration-200",
+        "bg-card border border-border rounded-sm p-5 transition-all duration-200",
         onClick && "cursor-pointer card-hover",
         glow && trend === "up" && "border-profit/30",
         glow && trend === "down" && "border-loss/30",
@@ -37,17 +37,17 @@ export default function DataCard({
       )}
     >
       {/* Header */}
-      <div className="flex items-center justify-between mb-2">
+      <div className="flex items-center justify-between mb-2.5">
         <div className="flex items-center gap-2">
-          {icon && <span className="text-sm">{icon}</span>}
-          <h3 className="text-[10px] font-semibold tracking-wider text-muted uppercase mono-data">
+          {icon && <span className="text-base">{icon}</span>}
+          <h3 className="text-xs font-semibold tracking-wider text-muted uppercase mono-data">
             {title}
           </h3>
         </div>
         {trend && (
           <span
             className={cn(
-              "text-[10px] mono-data font-semibold",
+              "text-xs mono-data font-semibold",
               trend === "up" && "text-profit",
               trend === "down" && "text-loss",
               trend === "neutral" && "text-muted"
@@ -74,7 +74,7 @@ export default function DataCard({
 
       {/* Subtitle */}
       {subtitle && (
-        <p className="text-[10px] text-muted-foreground mt-1 mono-data">{subtitle}</p>
+        <p className="text-[11px] text-muted-foreground mt-1.5 mono-data">{subtitle}</p>
       )}
 
       {/* Custom children */}
