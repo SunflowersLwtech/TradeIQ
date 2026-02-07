@@ -1,0 +1,862 @@
+const DEFAULT_LOCAL_API_BASE = "http://localhost:8000/api";
+
+function normalizeApiBase(url: string): string {
+  return url.replace(/\/+$/, "");
+}
+
+function resolveApiBase(): string {
+  const configured = process.env.NEXT_PUBLIC_API_URL?.trim();
+  if (configured) {
+    return normalizeApiBase(configured);
+  }
+
+  if (typeof window !== "undefined") {
+    const { origin, hostname } = window.location;
+    const isLocal = hostname === "localhost" || hostname === "127.0.0.1";
+    if (!isLocal) {
+      return `${origin}/api`;
+    }
+  }
+
+  return DEFAULT_LOCAL_API_BASE;
+}
+
+interface ApiOptions {
+  method?: string;
+  body?: unknown;
+  headers?: Record<string, string>;
+  token?: string;
+  requiresAuth?: boolean;
+}
+
+class ApiClient {
+  private baseUrl?: string;
+
+  constructor(baseUrl?: string) {
+    this.baseUrl = baseUrl?.trim() ? normalizeApiBase(baseUrl) : undefined;
+  }
+
+  private getBaseUrl(): string {
+    const resolved = resolveApiBase();
+    if (!this.baseUrl || this.baseUrl !== resolved) {
+      this.baseUrl = resolved;
+    }
+    return this.baseUrl;
+  }
+
+  private async getAccessToken(): Promise<string | undefined> {
+    if (typeof window === "undefined") {
+      return undefined;
+    }
+
+    try {
+      const { createClient } = await import("@/lib/supabase/client");
+      const supabase = createClient();
+      const { data } = await supabase.auth.getSession();
+      return data.session?.access_token;
+    } catch {
+      return undefined;
+    }
+  }
+
+  private async request<T>(endpoint: string, options: ApiOptions = {}): Promise<T> {
+    const { method = "GET", body, headers = {}, token, requiresAuth = false } = options;
+
+    const requestHeaders: Record<string, string> = {
+      "Content-Type": "application/json",
+      ...headers,
+    };
+
+    const accessToken = token || (requiresAuth ? await this.getAccessToken() : undefined);
+    if (accessToken) {
+      requestHeaders["Authorization"] = `Bearer ${accessToken}`;
+    } else if (requiresAuth) {
+      throw new ApiError(401, "Authentication required. Please sign in and try again.");
+    }
+
+    const response = await fetch(`${this.getBaseUrl()}${endpoint}`, {
+      method,
+      headers: requestHeaders,
+      body: body ? JSON.stringify(body) : undefined,
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ detail: response.statusText }));
+      throw new ApiError(response.status, error.detail || error.error || "Request failed");
+    }
+
+    return response.json();
+  }
+
+  // Market endpoints
+  async getMarketInsights() {
+    return this.request<MarketInsightsResponse>("/market/insights/");
+  }
+
+  async getMarketBrief(instruments?: string[]) {
+    return this.request<MarketBrief>("/market/brief/", {
+      method: "POST",
+      body: { instruments },
+    });
+  }
+
+  async askMarketAnalyst(question: string) {
+    return this.request<MarketAnalysis>("/market/ask/", {
+      method: "POST",
+      body: { question },
+    });
+  }
+
+  async getLivePrice(instrument: string) {
+    return this.request<LivePrice>("/market/price/", {
+      method: "POST",
+      body: { instrument },
+    });
+  }
+
+  async getMarketHistory(instrument: string, timeframe: string = "1h", count: number = 120) {
+    return this.request<MarketHistory>("/market/history/", {
+      method: "POST",
+      body: { instrument, timeframe, count },
+    });
+  }
+
+  async getMarketTechnicals(instrument: string, timeframe: string = "1h") {
+    return this.request<MarketTechnicals>("/market/technicals/", {
+      method: "POST",
+      body: { instrument, timeframe },
+    });
+  }
+
+  async getMarketSentiment(instrument: string) {
+    return this.request<MarketSentiment>("/market/sentiment/", {
+      method: "POST",
+      body: { instrument },
+    });
+  }
+
+  // Behavior endpoints
+  async getUserProfiles() {
+    return this.request<PaginatedResponse<UserProfile>>("/behavior/profiles/");
+  }
+
+  async getTrades(userId?: string) {
+    const query = userId ? `?user_id=${userId}` : "";
+    return this.request<PaginatedResponse<Trade>>(`/behavior/trades/${query}`);
+  }
+
+  async getBehavioralMetrics(userId?: string) {
+    const query = userId ? `?user_id=${userId}` : "";
+    return this.request<PaginatedResponse<BehavioralMetric>>(`/behavior/metrics/${query}`);
+  }
+
+  async analyzeBatch(userId: string, hours: number = 24) {
+    return this.request<BatchAnalysis>("/behavior/trades/analyze_batch/", {
+      method: "POST",
+      body: { user_id: userId, hours },
+      requiresAuth: true,
+    });
+  }
+
+  // Demo scenario endpoints
+  async analyzeScenario(scenario: string) {
+    return this.request<ScenarioAnalysis>("/demo/analyze/", {
+      method: "POST",
+      body: { scenario },
+    });
+  }
+
+  async listScenarios() {
+    return this.request<ScenariosListResponse>("/demo/scenarios/");
+  }
+
+  // Content endpoints
+  async getPersonas() {
+    return this.request<PaginatedResponse<AIPersona>>("/content/personas/");
+  }
+
+  async getPosts() {
+    return this.request<PaginatedResponse<SocialPost>>("/content/posts/");
+  }
+
+  async generateContent(data: GenerateContentRequest) {
+    return this.request<GenerateContentResponse>("/content/generate/", {
+      method: "POST",
+      body: data,
+    });
+  }
+
+  async publishToBluesky(content: string, postType: string = "single") {
+    return this.request<PublishResponse>("/content/publish-bluesky/", {
+      method: "POST",
+      body: { content, type: postType },
+    });
+  }
+
+  // Chat endpoint (REST fallback)
+  async chatAsk(message: string, conversationHistory?: ChatMessage[]) {
+    return this.request<ChatResponse>("/chat/ask/", {
+      method: "POST",
+      body: { message, conversation_history: conversationHistory },
+    });
+  }
+
+  // Demo endpoints
+  async seedDemo() {
+    return this.request<DemoResponse>("/demo/seed/", { method: "POST" });
+  }
+
+  async loadScenario(scenario: string) {
+    return this.request<LoadScenarioResponse>("/demo/load-scenario/", {
+      method: "POST",
+      body: { scenario },
+    });
+  }
+
+  async wowMoment(userId: string, instrument: string) {
+    return this.request<WowMomentResponse>("/demo/wow-moment/", {
+      method: "POST",
+      body: { user_id: userId, instrument },
+    });
+  }
+
+  // Agent Team Pipeline endpoints
+  async runPipeline(params: PipelineRequest = {}) {
+    return this.request<PipelineResponse>("/agents/pipeline/", {
+      method: "POST",
+      body: params,
+    });
+  }
+
+  async runMonitor(instruments?: string[], customEvent?: CustomEvent) {
+    return this.request<MonitorResponse>("/agents/monitor/", {
+      method: "POST",
+      body: { instruments, custom_event: customEvent },
+    });
+  }
+
+  async runAnalyst(event: VolatilityEventInput) {
+    return this.request<AnalysisReportResponse>("/agents/analyst/", {
+      method: "POST",
+      body: event,
+    });
+  }
+
+  async runAdvisor(analysisReport: AnalysisReportResponse, userPortfolio?: PortfolioPosition[]) {
+    return this.request<PersonalizedInsightResponse>("/agents/advisor/", {
+      method: "POST",
+      body: { analysis_report: analysisReport, user_portfolio: userPortfolio },
+    });
+  }
+
+  async runContentGen(analysisReport: AnalysisReportResponse, personalizedInsight?: PersonalizedInsightResponse) {
+    return this.request<MarketCommentaryResponse>("/agents/content-gen/", {
+      method: "POST",
+      body: { analysis_report: analysisReport, personalized_insight: personalizedInsight },
+    });
+  }
+
+  // Sentinel endpoint
+  async runSentinel(params: SentinelRequest) {
+    return this.request<BehavioralSentinelResponse>("/agents/sentinel/", {
+      method: "POST",
+      body: params,
+    });
+  }
+
+  // Deriv trade sync
+  async syncDerivTrades(userId?: string, daysBack?: number) {
+    return this.request<DerivSyncResponse>("/behavior/trades/sync_deriv/", {
+      method: "POST",
+      body: { user_id: userId, days_back: daysBack },
+    });
+  }
+
+  // ─── New API Endpoints (Phase 3-6) ──────────────────────────────
+
+  // Deriv portfolio & balance
+  async getPortfolio() {
+    return this.request<DerivPortfolioResponse>("/behavior/portfolio/");
+  }
+
+  async getBalance() {
+    return this.request<DerivBalanceResponse>("/behavior/balance/");
+  }
+
+  async getRealityCheck() {
+    return this.request<DerivRealityCheckResponse>("/behavior/reality-check/");
+  }
+
+  // Finnhub economic calendar
+  async getEconomicCalendar() {
+    return this.request<EconomicCalendarResponse>("/market/calendar/");
+  }
+
+  // Finnhub pattern recognition
+  async getPatternRecognition(instrument: string) {
+    return this.request<PatternRecognitionResponse>("/market/patterns/", {
+      method: "POST",
+      body: { instrument },
+    });
+  }
+
+  // NewsAPI top headlines
+  async getTopHeadlines(limit: number = 10) {
+    return this.request<TopHeadlinesResponse>(`/market/headlines/?limit=${limit}`);
+  }
+
+  // Deriv active symbols
+  async getActiveSymbols(market?: string) {
+    const query = market ? `?market=${market}` : "";
+    return this.request<ActiveSymbolsResponse>(`/market/instruments/${query}`);
+  }
+
+  // Bluesky social search
+  async searchBluesky(query: string, limit: number = 10) {
+    return this.request<BlueskySearchResponse>(`/content/bluesky-search/?q=${encodeURIComponent(query)}&limit=${limit}`);
+  }
+
+  // Chat with history
+  async chatWithHistory(message: string, agentType: string = "auto", history?: Array<{role: string; content: string}>, userId?: string) {
+    return this.request<ChatResponse>("/agents/chat/", {
+      method: "POST",
+      body: { message, agent_type: agentType, history, user_id: userId },
+    });
+  }
+}
+
+// Error class
+export class ApiError extends Error {
+  status: number;
+  constructor(status: number, message: string) {
+    super(message);
+    this.status = status;
+    this.name = "ApiError";
+  }
+}
+
+// Paginated response from DRF
+export interface PaginatedResponse<T> {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: T[];
+}
+
+// Types matching backend models
+export interface MarketInsight {
+  id: string;
+  instrument: string;
+  insight_type: string;
+  content: string;
+  sentiment_score?: number | null;
+  generated_at?: string;
+  // Backward-compatible fields for older payloads
+  confidence?: number | null;
+  created_at?: string;
+}
+
+export interface MarketInsightsResponse {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: MarketInsight[];
+}
+
+export interface MarketBrief {
+  summary: string;
+  instruments: InstrumentData[];
+  timestamp: string;
+}
+
+export interface InstrumentData {
+  symbol: string;
+  price: number | null;
+  source?: string;
+  change?: number;
+  change_percent?: number;
+  trend?: string;
+}
+
+export interface MarketAnalysis {
+  answer: string;
+  disclaimer: string;
+  sources?: unknown[];
+  tools_used?: string[];
+}
+
+export interface LivePrice {
+  instrument: string;
+  deriv_symbol?: string;
+  price: number | null;
+  bid?: number | null;
+  ask?: number | null;
+  timestamp: string;
+  source: string;
+  error?: string;
+}
+
+export interface MarketCandle {
+  time: string;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+}
+
+export interface MarketHistory {
+  instrument: string;
+  timeframe: string;
+  candles: MarketCandle[];
+  change: number;
+  change_percent: number;
+  source: string;
+  error?: string;
+}
+
+export interface MarketTechnicals {
+  instrument: string;
+  timeframe: string;
+  current_price?: number;
+  trend?: "bullish" | "bearish" | "neutral";
+  volatility?: "low" | "medium" | "high";
+  key_levels?: {
+    support: number;
+    resistance: number;
+  };
+  indicators?: {
+    sma20?: number;
+    sma50?: number | null;
+    rsi14?: number;
+  };
+  summary?: string;
+  source?: string;
+  error?: string;
+}
+
+export interface MarketSentiment {
+  instrument: string;
+  sentiment: "bullish" | "bearish" | "neutral";
+  score: number;
+  key_points?: string[];
+  confidence?: number;
+  sources: string[];
+}
+
+export interface UserProfile {
+  id: string;
+  email: string;
+  name: string;
+  preferences: Record<string, unknown>;
+  watchlist: string[];
+  created_at: string;
+}
+
+export interface Trade {
+  id: string;
+  user: string;
+  instrument: string;
+  direction: "buy" | "sell";
+  entry_price: number | null;
+  exit_price: number | null;
+  pnl: number;
+  duration_seconds: number | null;
+  opened_at: string;
+  closed_at: string | null;
+  is_mock: boolean;
+  created_at: string;
+}
+
+export interface BehavioralMetric {
+  id: string;
+  user: string;
+  trading_date: string;
+  total_trades: number;
+  win_count: number;
+  loss_count: number;
+  avg_hold_time: number | null;
+  risk_score: number | null;
+  emotional_state: string;
+  pattern_flags: Record<string, boolean>;
+  created_at: string;
+}
+
+export interface BatchAnalysis {
+  analysis: {
+    patterns: Record<string, unknown>;
+    summary: string;
+    needs_nudge: boolean;
+    trade_count: number;
+    time_window: string;
+  };
+  nudge: {
+    nudge_type: string;
+    message: string;
+    severity: string;
+    suggested_action: string;
+  } | null;
+}
+
+export interface ScenarioAnalysis {
+  scenario: string;
+  user_id: string;
+  trades_created: number;
+  analysis: {
+    patterns: Record<string, unknown>;
+    summary: string;
+    needs_nudge: boolean;
+    trade_count: number;
+    time_window: string;
+  };
+  nudge: {
+    nudge_type: string;
+    message: string;
+    severity: string;
+    suggested_action: string;
+  } | null;
+  expected_detection: string;
+  expected_nudge: string;
+}
+
+export interface ScenariosListResponse {
+  scenarios: {
+    name: string;
+    description: string;
+    expected_detection: string;
+    expected_nudge: string;
+  }[];
+}
+
+export interface LoadScenarioResponse {
+  status: string;
+  scenario: string;
+  user_id: string;
+  trades_created: number;
+  expected_detection: string;
+  expected_nudge: string;
+}
+
+export interface AIPersona {
+  id: string;
+  name: string;
+  personality_type?: string;
+  system_prompt?: string;
+  created_at?: string;
+}
+
+export interface SocialPost {
+  id: string;
+  persona: string;
+  persona_name?: string;
+  platform: string;
+  content: string;
+  status: "draft" | "published" | "scheduled";
+  engagement_metrics?: Record<string, unknown>;
+  published_at?: string | null;
+  scheduled_at?: string | null;
+  created_at: string;
+}
+
+export interface GenerateContentRequest {
+  insight: string;
+  platform: "bluesky_post" | "bluesky_thread";
+  persona_id?: string;
+}
+
+export interface GenerateContentResponse {
+  content: string;
+  platform: string;
+  persona: string;
+  disclaimer: string;
+  status?: string;
+}
+
+export interface PublishResponse {
+  success: boolean;
+  status?: string;
+  platform?: string;
+  uri?: string;
+  results?: Array<{ uri?: string; url?: string; index?: number }>;
+  error?: string;
+}
+
+export interface ChatMessage {
+  role: "user" | "assistant" | "system";
+  content: string;
+  timestamp?: string;
+  type?: "normal" | "nudge" | "disclaimer";
+}
+
+export interface ChatResponse {
+  message?: string;
+  reply?: string;
+  agent_type?: string;
+  tools_used?: string[];
+  source?: string;
+  disclaimer?: string;
+  nudge?: string;
+}
+
+export interface DemoResponse {
+  success: boolean;
+  message: string;
+  user_id?: string;
+}
+
+export interface WowMomentResponse {
+  market_analysis: string;
+  behavior_insight: string;
+  content_preview: string;
+  disclaimer: string;
+}
+
+// ─── Agent Team Pipeline types ───
+
+export interface CustomEvent {
+  instrument: string;
+  price?: number;
+  change_pct: number;
+}
+
+export interface PipelineRequest {
+  instruments?: string[];
+  custom_event?: CustomEvent;
+  user_portfolio?: PortfolioPosition[];
+  skip_content?: boolean;
+  user_id?: string;
+}
+
+export interface PortfolioPosition {
+  instrument: string;
+  direction: "long" | "short";
+  size: number;
+  entry_price: number;
+  pnl: number;
+}
+
+export interface VolatilityEventData {
+  instrument: string;
+  current_price: number | null;
+  price_change_pct: number;
+  direction: "spike" | "drop";
+  magnitude: "high" | "medium";
+  detected_at: string;
+  raw_data: Record<string, unknown>;
+}
+
+export interface VolatilityEventInput {
+  instrument: string;
+  current_price?: number;
+  price_change_pct: number;
+  direction: "spike" | "drop";
+  magnitude: "high" | "medium";
+}
+
+export interface AnalysisReportResponse {
+  instrument: string;
+  event_summary: string;
+  root_causes: string[];
+  news_sources: { title: string; url: string; source?: string }[];
+  sentiment: string;
+  sentiment_score: number;
+  key_data_points: string[];
+  generated_at: string;
+}
+
+export interface PersonalizedInsightResponse {
+  instrument: string;
+  impact_summary: string;
+  affected_positions: PortfolioPosition[];
+  risk_assessment: "high" | "medium" | "low";
+  suggestions: string[];
+  generated_at: string;
+}
+
+export interface MarketCommentaryResponse {
+  post: string;
+  hashtags: string[];
+  data_points: string[];
+  platform: string;
+  published: boolean;
+  bluesky_uri: string;
+  bluesky_url: string;
+  generated_at: string;
+}
+
+export interface BehavioralSentinelResponse {
+  instrument: string;
+  market_event_summary: string;
+  behavioral_context: string;
+  risk_level: "high" | "medium" | "low";
+  personalized_warning: string;
+  historical_pattern_match: string;
+  user_stats_snapshot: Record<string, unknown>;
+  generated_at: string;
+}
+
+export interface SentinelRequest {
+  instrument: string;
+  price_change_pct: number;
+  direction: "spike" | "drop";
+  event_summary?: string;
+  user_id?: string;
+  current_price?: number;
+  sentiment?: string;
+  sentiment_score?: number;
+  root_causes?: string[];
+}
+
+export interface DerivSyncResponse {
+  status: string;
+  user_id: string;
+  trades_synced: number;
+  trades_updated: number;
+  total_trades: number;
+  analysis_summary: Record<string, unknown> | null;
+}
+
+export interface PipelineResponse {
+  status: "success" | "partial" | "no_event" | "error";
+  volatility_event: VolatilityEventData | null;
+  analysis_report: AnalysisReportResponse | null;
+  personalized_insight: PersonalizedInsightResponse | null;
+  sentinel_insight: BehavioralSentinelResponse | null;
+  market_commentary: MarketCommentaryResponse | null;
+  errors: string[];
+  pipeline_started_at: string;
+  pipeline_finished_at: string;
+}
+
+export interface MonitorResponse {
+  status: "detected" | "no_event";
+  event?: VolatilityEventData;
+  message?: string;
+}
+
+// ─── New API Types (Phase 3-6) ──────────────────────────────────
+
+export interface DerivPortfolioResponse {
+  contracts?: Array<{
+    symbol: string;
+    contract_id: number;
+    contract_type: string;
+    buy_price: number;
+    payout: number;
+    date_start: number;
+    date_expiry?: number;
+    longcode: string;
+  }>;
+}
+
+export interface DerivBalanceResponse {
+  balance: number;
+  currency: string;
+  id?: string;
+  loginid?: string;
+}
+
+export interface DerivRealityCheckResponse {
+  buy_amount?: number;
+  buy_count?: number;
+  currency?: string;
+  open_contract_count?: number;
+  potential_profit?: number;
+  sell_amount?: number;
+  sell_count?: number;
+  start_time?: number;
+}
+
+export interface EconomicEvent {
+  country: string;
+  event: string;
+  impact: string;
+  date: string;
+  time: string;
+  actual: number | null;
+  estimate: number | null;
+  prev: number | null;
+  unit: string;
+}
+
+export interface EconomicCalendarResponse {
+  events: EconomicEvent[];
+  from_date: string;
+  to_date: string;
+  count: number;
+  source: string;
+}
+
+export interface PatternRecognitionResponse {
+  instrument: string;
+  patterns: Array<Record<string, unknown>>;
+  count: number;
+  source: string;
+}
+
+export interface TopHeadlinesResponse {
+  headlines: Array<{
+    title: string;
+    description: string;
+    url: string;
+    publishedAt: string;
+    source: string;
+  }>;
+}
+
+export interface ActiveSymbolsResponse {
+  instruments: Array<{
+    symbol: string;
+    display_name: string;
+    market: string;
+    market_display_name: string;
+    submarket: string;
+    submarket_display_name: string;
+    is_trading_suspended: number;
+    pip: number;
+  }>;
+  count: number;
+}
+
+export interface BlueskyPost {
+  text: string;
+  author: string;
+  author_name: string;
+  like_count: number;
+  repost_count: number;
+  uri: string;
+  url: string;
+  created_at: string;
+}
+
+export interface BlueskySearchResponse {
+  query: string;
+  posts: BlueskyPost[];
+  count: number;
+}
+
+export interface WowMomentResponse {
+  market_analysis: string;
+  behavior_insight: string;
+  sentinel_fusion?: {
+    personalized_warning: string;
+    behavioral_context: string;
+    risk_level: string;
+    historical_pattern_match: string;
+  } | string;
+  content_preview: string;
+  economic_calendar?: {
+    high_impact_events: EconomicEvent[];
+    total_events: number;
+  } | string;
+  social_sentiment?: {
+    platform: string;
+    query: string;
+    posts: BlueskyPost[];
+    total_found: number;
+  } | string;
+  disclaimer: string;
+}
+
+// Singleton instance
+export const api = new ApiClient(process.env.NEXT_PUBLIC_API_URL);
+export default api;
