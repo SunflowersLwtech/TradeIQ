@@ -1,16 +1,87 @@
-# TradeIQ - Intelligent Trading Analyst
+<p align="center">
+  <img src="frontend/public/tradeiq_favicon.svg" width="80" alt="TradeIQ Logo" />
+</p>
 
-An AI-powered trading analytics platform built for the **Deriv AI Hackathon 2026**. TradeIQ combines real-time market analysis, behavioral coaching, and social content generation into a unified intelligent trading assistant.
+<h1 align="center">TradeIQ</h1>
 
-## Three Pillars
+<p align="center">
+  <strong>The Bloomberg Terminal for retail traders, the trading coach they never had, and the content team they always wanted.</strong>
+</p>
 
-| Pillar | Description |
-|--------|-------------|
-| **Market Analysis** | Real-time price feeds, technical indicators, sentiment analysis, economic calendar, and AI-powered market Q&A via Deriv WebSocket API |
-| **Behavioral Coaching** | Trade pattern detection (revenge trading, overtrading, tilt), personalized nudges, and risk scoring based on user trading history |
-| **Social Content Engine** | AI-generated market commentary with multiple personas, one-click publish to Bluesky via AT Protocol |
+<p align="center">
+  <a href="https://deriv.com"><img src="https://img.shields.io/badge/Deriv_AI_Hackathon-2026-ff444f?style=for-the-badge&logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHBhdGggZD0iTTEyIDJMMiAyMmgyMEwxMiAyeiIgZmlsbD0id2hpdGUiLz48L3N2Zz4=" alt="Deriv Hackathon 2026" /></a>
+  <img src="https://img.shields.io/badge/Next.js-16-black?style=for-the-badge&logo=next.js" alt="Next.js" />
+  <img src="https://img.shields.io/badge/Django-5-092E20?style=for-the-badge&logo=django" alt="Django" />
+  <img src="https://img.shields.io/badge/DeepSeek-AI-4A90D9?style=for-the-badge" alt="DeepSeek" />
+  <img src="https://img.shields.io/badge/Supabase-DB-3ECF8E?style=for-the-badge&logo=supabase" alt="Supabase" />
+</p>
 
-> **Note**: TradeIQ provides educational analysis only. It does not provide trading signals, predictions, or financial advice.
+<p align="center">
+  <a href="https://deepwiki.com/SunflowersLwtech/deriv-hackathon"><img src="https://deepwiki.com/badge.svg" alt="Ask DeepWiki"></a>
+</p>
+
+---
+
+## The Problem
+
+Traders face two interconnected challenges: **understanding what's happening in markets** and **managing their own behaviour**. Professional traders have analyst teams for market insights and coaches for discipline. Retail traders have neither.
+
+> *"I see the price dropped 5% but I don't know why. By the time I find the news, the move is over."*
+>
+> *"I didn't realise I was on a losing streak until I'd lost half my account. No one warned me."*
+>
+> *"I wish there was a trusted voice that explained what's happening in markets without the hype."*
+
+**TradeIQ** bridges this gap with AI-powered intelligence across three pillars:
+
+<table>
+<tr>
+<td width="33%" align="center">
+
+**Market Analysis**
+
+Real-time prices, technical indicators, sentiment analysis, economic calendar, and AI-powered market Q&A
+
+</td>
+<td width="33%" align="center">
+
+**Behavioral Coaching**
+
+Trade pattern detection (revenge trading, overtrading, loss chasing), personalized nudges, and risk scoring
+
+</td>
+<td width="33%" align="center">
+
+**Social Content Engine**
+
+AI-generated market commentary with multiple personas, auto-hashtags, one-click publish to Bluesky
+
+</td>
+</tr>
+</table>
+
+> **Note**: TradeIQ provides educational analysis only. It does **not** provide trading signals, predictions, or financial advice.
+
+---
+
+## Quick Start
+
+```bash
+# Clone and setup
+git clone https://github.com/SunflowersLwtech/deriv-hackathon.git
+cd "deriv hackathon"
+cp .env.example .env          # Fill in your API keys
+
+# Backend
+conda create -n tradeiq python=3.11 -y && conda activate tradeiq
+pip install -r backend/requirements.txt
+cd backend && python manage.py runserver
+
+# Frontend (new terminal)
+cd frontend && npm ci && npm run dev
+```
+
+Open **http://localhost:3000** (frontend) and **http://localhost:8000/api/** (backend).
 
 ---
 
@@ -18,455 +89,301 @@ An AI-powered trading analytics platform built for the **Deriv AI Hackathon 2026
 
 | Layer | Technology |
 |-------|-----------|
-| Frontend | Next.js 16, React 19, TailwindCSS 4, TradingView Lightweight Charts, Recharts, Framer Motion |
-| Backend | Django 5, Django REST Framework, Django Channels (Daphne ASGI), WebSocket |
-| AI/LLM | DeepSeek API / OpenRouter (OpenAI-compatible), Multi-agent pipeline |
-| Database | Supabase PostgreSQL, Upstash Redis (channel layer) |
-| Auth | Supabase Auth (Google OAuth, JWT) |
-| External APIs | Deriv WebSocket API, NewsAPI, Finnhub, Bluesky AT Protocol |
-| Deployment | Docker Compose, Vercel (frontend), Railway/Render (backend) |
+| **Frontend** | Next.js 16, React 19, Tailwind CSS 4, Recharts, Framer Motion |
+| **Backend** | Django 5, DRF, Django Channels (Daphne ASGI), WebSocket |
+| **AI/LLM** | DeepSeek V3 via OpenRouter (function calling + multi-agent pipeline) |
+| **Database** | Supabase PostgreSQL, Upstash Redis (channel layer) |
+| **Auth** | Supabase Auth (Google OAuth, JWT) |
+| **External APIs** | Deriv WebSocket, NewsAPI, Finnhub, Bluesky AT Protocol |
 
 ---
 
-## Quick Start
+## 5-Agent Pipeline
 
-### Docker (Recommended)
-
-```bash
-git clone <repo-url> && cd "deriv hackathon"
-cp .env.example .env        # Edit .env with your API keys
-docker compose up --build    # Frontend: :3000, Backend: :8000
+```
+[1] Market Monitor ──> [2] Event Analyst ──> [3] Portfolio Advisor
+      (Deriv API)          (News + LLM)          (User positions)
+                                                        │
+[5] Content Creator <── [4] Behavioral Sentinel <───────┘
+     (Bluesky post)         (Trade history)
 ```
 
-### Without Docker
-
-```bash
-conda create -n tradeiq python=3.11 -y && conda activate tradeiq
-pip install -r backend/requirements.txt
-cd frontend && npm ci && cd ..
-cp .env.example .env && cp frontend/.env.example frontend/.env.local
-# Edit both .env files with your API keys
-cd backend && python manage.py migrate && cd ..
-./scripts/start_prod.sh
-```
-
-See [DEPLOY.md](./DEPLOY.md) for detailed deployment instructions including Vercel, Railway, and Render.
+Each agent receives structured input from the previous stage, runs DeepSeek function calling with specialized tools, and passes results forward. The pipeline produces a complete analysis from raw market event to published Bluesky post.
 
 ---
 
-## Project Structure
+<details>
+<summary><h2>External APIs & Integration Details</h2></summary>
+
+### Deriv WebSocket API
+- **Live prices** (`ticks`) and **OHLC candles** (`ticks_history`)
+- **Trade history** (`profit_table`) for behavioral analysis
+- **Portfolio** and **balance** for real-time account data
+- **Active symbols** for dynamic instrument listing
+- **Reality check** for official session health data
+- Connection: `wss://ws.derivws.com/websockets/v3?app_id=YOUR_APP_ID`
+
+### Finnhub API
+- **Economic calendar** (`/calendar/economic`) — explains "why did EUR/USD drop?"
+- **Chart pattern recognition** (`/scan/pattern`) — head-and-shoulders, triangles, etc.
+- **Real-time quotes** (`/quote`) — fallback for Deriv coverage gaps
+- **Market news** (`/news`) — aggregated with NewsAPI
+
+### NewsAPI
+- **Top headlines** (`/v2/top-headlines?category=business`) — dashboard news feed
+- **Keyword search** (`/v2/everything`) — instrument-specific news for sentiment
+- Domain filtering for authoritative sources (Reuters, Bloomberg, CNBC)
+
+### Bluesky AT Protocol
+- **Post publishing** with auto-hashtag facets (`#TradeIQ #trading`)
+- **Thread publishing** for multi-part analysis
+- **Link card embeds** for news source references
+- **Post search** for social sentiment analysis
+- Authentication via app password (not OAuth)
+
+</details>
+
+---
+
+<details>
+<summary><h2>API Reference</h2></summary>
+
+All endpoints served under `/api/`. Auth via `Authorization: Bearer <supabase_jwt>` (most endpoints work without auth for demo).
+
+### Market Analysis
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/api/market/ask/` | Ask AI market analyst a question |
+| `POST` | `/api/market/brief/` | Market summary for instruments |
+| `POST` | `/api/market/price/` | Live price (Deriv WebSocket) |
+| `POST` | `/api/market/history/` | OHLC candles |
+| `POST` | `/api/market/technicals/` | SMA, RSI, support/resistance |
+| `POST` | `/api/market/sentiment/` | AI sentiment analysis |
+| `GET` | `/api/market/calendar/` | Economic calendar (Finnhub) |
+| `GET` | `/api/market/headlines/` | Top headlines (NewsAPI) |
+| `GET` | `/api/market/instruments/` | Active symbols (Deriv) |
+| `POST` | `/api/market/patterns/` | Chart patterns (Finnhub) |
+
+### Behavioral Coaching
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/behavior/trades/` | Trade history |
+| `POST` | `/api/behavior/trades/analyze_batch/` | Pattern detection |
+| `POST` | `/api/behavior/trades/sync_deriv/` | Sync from Deriv account |
+| `GET` | `/api/behavior/portfolio/` | Deriv portfolio |
+| `GET` | `/api/behavior/balance/` | Deriv balance |
+| `GET` | `/api/behavior/reality-check/` | Deriv reality check |
+
+### Content Engine
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/api/content/generate/` | Generate social content |
+| `POST` | `/api/content/publish-bluesky/` | Publish to Bluesky |
+| `GET` | `/api/content/bluesky-search/` | Search Bluesky posts |
+| `GET` | `/api/content/personas/` | List AI personas |
+
+### Agent Pipeline
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/api/agents/pipeline/` | Full 5-stage pipeline |
+| `POST` | `/api/agents/monitor/` | Stage 1: Market Monitor |
+| `POST` | `/api/agents/analyst/` | Stage 2: Event Analyst |
+| `POST` | `/api/agents/advisor/` | Stage 3: Portfolio Advisor |
+| `POST` | `/api/agents/sentinel/` | Stage 4: Behavioral Sentinel |
+| `POST` | `/api/agents/content-gen/` | Stage 5: Content Creator |
+| `POST` | `/api/agents/chat/` | Auto-routed chat |
+
+### Demo
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/api/demo/seed/` | Initialize demo data |
+| `POST` | `/api/demo/analyze/` | Load scenario + analyze |
+| `POST` | `/api/demo/wow-moment/` | Three-pillar combined demo |
+
+</details>
+
+---
+
+<details>
+<summary><h2>Behavioral Detection Algorithms</h2></summary>
+
+### Revenge Trading
+- **Trigger**: 3+ trades within 10 minutes after a loss
+- **Severity**: Low (3 trades), Medium (4), High (5+)
+- **Nudge**: "I notice you've made several trades quickly after a loss. Consider taking a breath."
+
+### Overtrading
+- **Trigger**: Daily trade count > 2x historical average
+- **Severity**: Low (2-2.5x), Medium (2.5-3x), High (3x+)
+- **Nudge**: "You're at X trades today, which is Y times your average. Quality over quantity."
+
+### Loss Chasing
+- **Trigger**: 2+ consecutive losses with 20%+ position size increase
+- **Severity**: Based on consecutive count and size escalation
+- **Nudge**: "I see increasing position sizes after losses. Classic loss-chasing pattern."
+
+### Time-Based Patterns
+- **Trigger**: Win rate < 35% during specific hours (min 3 trades/hour)
+- **Output**: Identifies worst-performing trading hours
+
+All nudges are **supportive, not restrictive** — they inform and suggest, never block or judge.
+
+</details>
+
+---
+
+<details>
+<summary><h2>Project Structure</h2></summary>
 
 ```
 deriv hackathon/
 ├── frontend/                  # Next.js 16 (React 19)
-│   ├── src/
-│   │   ├── app/               # App Router pages
-│   │   │   ├── page.tsx       # Dashboard (Overview)
-│   │   │   ├── market/        # Market Analysis page
-│   │   │   ├── behavior/      # Behavioral Coaching page
-│   │   │   ├── content/       # Content Generation page
-│   │   │   ├── pipeline/      # Agent Team Pipeline demo
-│   │   │   ├── login/         # Login page
-│   │   │   └── auth/callback/ # OAuth callback handler
-│   │   ├── components/        # React components (layout, market, behavior, chat, ui)
-│   │   ├── hooks/             # Custom React hooks (useMarketData, useBehaviorData, etc.)
-│   │   └── lib/
-│   │       ├── api.ts         # REST API client (all endpoints)
-│   │       ├── websocket.ts   # WebSocket client (auto-reconnect)
-│   │       └── supabase/      # Supabase browser client
-│   ├── vercel.json            # Vercel deployment config
-│   └── Dockerfile             # Docker build (multi-stage standalone)
+│   ├── src/app/               # App Router pages (dashboard, market, behavior, content, pipeline)
+│   ├── src/components/        # 25+ React components (layout, market, behavior, chat, ui)
+│   ├── src/hooks/             # Custom hooks (useMarketData, useBehaviorData, useApiWithFallback)
+│   └── src/lib/               # API client (60+ types), WebSocket client, Supabase client
 │
 ├── backend/                   # Django 5 + DRF + Channels
-│   ├── tradeiq/               # Project config
-│   │   ├── settings.py        # Django settings (DB, auth, CORS, channels)
-│   │   ├── asgi.py            # ASGI application (HTTP + WebSocket routing)
-│   │   ├── urls.py            # Root URL routing (/api/*)
-│   │   └── middleware/        # Supabase JWT authentication backend
-│   ├── market/                # Market Analysis app (views, models, tools)
-│   ├── behavior/              # Behavioral Coaching app (detection, deriv_client)
-│   ├── content/               # Content Engine app (personas, bluesky client)
-│   ├── agents/                # AI Agent Team (router, agent_team, tools_registry)
-│   ├── chat/                  # WebSocket chat consumer
-│   ├── demo/                  # Demo scenarios & data seeding
-│   ├── railway.toml           # Railway deployment config
-│   └── Dockerfile             # Docker build (multi-stage)
+│   ├── agents/                # AI Agent Team (router, agent_team, tools_registry, compliance)
+│   ├── market/                # Market Analysis (Deriv WebSocket, Finnhub, NewsAPI tools)
+│   ├── behavior/              # Behavioral Coach (detection algorithms, Deriv client, nudges)
+│   ├── content/               # Content Engine (personas, Bluesky AT Protocol client)
+│   ├── chat/                  # WebSocket consumer (auto-routing to agents)
+│   ├── demo/                  # Demo scenarios (revenge_trading, overtrading, loss_chasing)
+│   └── tradeiq/               # Django config (settings, ASGI, JWT auth middleware)
 │
-├── scripts/                   # Start & verification scripts
-│   ├── start_prod.sh          # One-click production start
-│   ├── start_backend.sh       # Backend development server
-│   ├── start_frontend.sh      # Frontend development server
-│   ├── verify_env.py          # Environment variable checker
-│   └── test_all_features.py   # Comprehensive feature test suite
-│
-├── docker-compose.yml         # One-click local deployment
-├── render.yaml                # Render blueprint (one-click cloud)
-├── .env.example               # Environment variables template
-├── DEPLOY.md                  # Deployment guide (4 methods)
-└── DESIGN_DOCUMENT.md         # Architecture design document
+├── scripts/                   # Setup, start, and verification scripts
+├── dev/                       # Architecture diagrams (10 PNGs) and design docs
+└── .env.example               # Environment variables template
 ```
+
+</details>
 
 ---
 
-## API Reference
-
-All backend endpoints are served under `/api/`. Authentication uses Supabase JWT tokens passed as `Authorization: Bearer <token>`.
-
-### Market Analysis API
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/api/market/insights/` | List market insights (paginated) |
-| `POST` | `/api/market/ask/` | Ask the AI market analyst a free-form question |
-| `POST` | `/api/market/brief/` | Get market summary for specific instruments |
-| `POST` | `/api/market/price/` | Get live price for an instrument (via Deriv API) |
-| `POST` | `/api/market/history/` | Get historical OHLC candle data |
-| `POST` | `/api/market/technicals/` | Get technical indicators (SMA, RSI, support/resistance) |
-| `POST` | `/api/market/sentiment/` | Get AI-powered sentiment analysis |
-| `GET` | `/api/market/calendar/` | Get economic calendar events (Finnhub) |
-| `GET` | `/api/market/headlines/` | Get top financial news headlines (NewsAPI) |
-| `GET` | `/api/market/instruments/` | List active tradeable symbols (Deriv) |
-| `POST` | `/api/market/patterns/` | Get chart pattern recognition (Finnhub) |
-
-#### Example: Ask Market Analyst
+<details>
+<summary><h2>Environment Variables</h2></summary>
 
 ```bash
-curl -X POST http://localhost:8000/api/market/ask/ \
+# Database
+DATABASE_URL=postgresql://...          # Supabase connection string
+
+# Django
+DJANGO_SECRET_KEY=...
+DEBUG=True
+
+# LLM (need at least one)
+DEEPSEEK_API_KEY=...                   # Direct DeepSeek
+OPENROUTER_API_KEY=...                 # OpenRouter (recommended)
+
+# Deriv API (free at api.deriv.com)
+DERIV_APP_ID=...                       # App registration ID
+DERIV_TOKEN=...                        # API token (read + trade scope)
+
+# News & Data
+NEWS_API_KEY=...                       # newsapi.org
+FINNHUB_API_KEY=...                    # finnhub.io
+
+# Social
+BLUESKY_HANDLE=...                     # your-handle.bsky.social
+BLUESKY_APP_PASSWORD=...               # App password (not main password)
+
+# Auth
+SUPABASE_URL=https://xxx.supabase.co
+SUPABASE_JWT_SECRET=...
+GOOGLE_CLIENT_ID=...                   # For Google OAuth
+
+# Frontend (.env.local)
+NEXT_PUBLIC_API_URL=http://localhost:8000/api
+NEXT_PUBLIC_WS_URL=ws://localhost:8000/ws
+NEXT_PUBLIC_SUPABASE_URL=https://xxx.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=...
+```
+
+All API keys work on **free tiers** for hackathon demo purposes.
+
+</details>
+
+---
+
+<details>
+<summary><h2>Demo Scenarios</h2></summary>
+
+Pre-configured behavioral patterns for live demo:
+
+| Scenario | Trades | Pattern | Expected Detection |
+|----------|--------|---------|-------------------|
+| `revenge_trading` | 5 trades in 8 min after -$200 loss | Rapid trading post-loss | Revenge trading (high) |
+| `overtrading` | 22 trades in 80 min (2.75x avg) | Excessive frequency | Overtrading (medium) |
+| `loss_chasing` | 4 consecutive losses, 1.5x size increase | Position size escalation | Loss chasing (high) |
+| `healthy_session` | 6 trades, 60% win rate | Disciplined trading | No patterns (healthy) |
+
+```bash
+# Load and analyze a scenario
+curl -X POST http://localhost:8000/api/demo/analyze/ \
   -H "Content-Type: application/json" \
-  -d '{"question": "What is driving BTC/USD volatility today?"}'
-```
+  -d '{"scenario": "revenge_trading"}'
 
-```json
-{
-  "answer": "BTC/USD is experiencing heightened volatility driven by...",
-  "disclaimer": "This is educational analysis, not financial advice.",
-  "tools_used": ["deriv_live_price", "news_search", "sentiment_analysis"]
-}
-```
-
-#### Example: Get Technical Indicators
-
-```bash
-curl -X POST http://localhost:8000/api/market/technicals/ \
-  -H "Content-Type: application/json" \
-  -d '{"instrument": "BTC/USD", "timeframe": "1h"}'
-```
-
-```json
-{
-  "instrument": "BTC/USD",
-  "timeframe": "1h",
-  "current_price": 67234.50,
-  "trend": "bullish",
-  "volatility": "high",
-  "key_levels": { "support": 65800.0, "resistance": 68500.0 },
-  "indicators": { "sma20": 66890.30, "sma50": 65420.15, "rsi14": 62.5 },
-  "summary": "BTC/USD is in a bullish trend above both SMAs...",
-  "source": "deriv_api"
-}
-```
-
-#### Example: Get Live Price
-
-```bash
-curl -X POST http://localhost:8000/api/market/price/ \
+# Three-pillar "wow moment" demo
+curl -X POST http://localhost:8000/api/demo/wow-moment/ \
   -H "Content-Type: application/json" \
   -d '{"instrument": "EUR/USD"}'
 ```
 
-```json
-{
-  "instrument": "EUR/USD",
-  "deriv_symbol": "frxEURUSD",
-  "price": 1.08234,
-  "bid": 1.08230,
-  "ask": 1.08238,
-  "timestamp": "2026-02-08T10:30:00Z",
-  "source": "deriv_api"
-}
-```
-
-### Behavioral Coaching API
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/api/behavior/profiles/` | List user profiles |
-| `GET` | `/api/behavior/trades/` | List user trades (paginated) |
-| `GET` | `/api/behavior/metrics/` | Get behavioral metrics (daily aggregates) |
-| `POST` | `/api/behavior/trades/analyze_batch/` | Analyze recent trades for patterns (auth required) |
-| `POST` | `/api/behavior/trades/sync_deriv/` | Sync trades from Deriv account |
-| `GET` | `/api/behavior/portfolio/` | Get Deriv portfolio positions |
-| `GET` | `/api/behavior/balance/` | Get Deriv account balance |
-| `GET` | `/api/behavior/reality-check/` | Get Deriv reality check data |
-
-#### Example: Analyze Trading Patterns
-
-```bash
-curl -X POST http://localhost:8000/api/behavior/trades/analyze_batch/ \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer <jwt_token>" \
-  -d '{"user_id": "user-uuid", "hours": 24}'
-```
-
-```json
-{
-  "analysis": {
-    "patterns": { "revenge_trading": true, "overtrading": false, "tilt": false },
-    "summary": "3 rapid trades detected after a significant loss...",
-    "needs_nudge": true,
-    "trade_count": 8,
-    "time_window": "24h"
-  },
-  "nudge": {
-    "nudge_type": "revenge_trading",
-    "message": "You have made 3 trades in quick succession after a loss. Consider taking a break.",
-    "severity": "warning",
-    "suggested_action": "Take a 30-minute break before your next trade."
-  }
-}
-```
-
-### Content Engine API
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/api/content/personas/` | List AI personas (Market Maven, Data Sage, etc.) |
-| `GET` | `/api/content/posts/` | List social posts (draft/published) |
-| `POST` | `/api/content/generate/` | Generate social content from market insight |
-| `POST` | `/api/content/publish-bluesky/` | Publish content to Bluesky |
-| `GET` | `/api/content/bluesky-search/` | Search Bluesky for market discussions |
-
-#### Example: Generate Content
-
-```bash
-curl -X POST http://localhost:8000/api/content/generate/ \
-  -H "Content-Type: application/json" \
-  -d '{
-    "insight": "BTC/USD broke above 68K resistance with strong volume",
-    "platform": "bluesky_post"
-  }'
-```
-
-```json
-{
-  "content": "BTC just cleared the 68K resistance level with conviction...",
-  "platform": "bluesky_post",
-  "persona": "Market Maven",
-  "disclaimer": "For educational purposes only. Not financial advice."
-}
-```
-
-#### Example: Publish to Bluesky
-
-```bash
-curl -X POST http://localhost:8000/api/content/publish-bluesky/ \
-  -H "Content-Type: application/json" \
-  -d '{"content": "Market update: BTC holding above 68K support.", "type": "single"}'
-```
-
-```json
-{
-  "success": true,
-  "status": "published",
-  "platform": "bluesky",
-  "uri": "at://did:plc:xxx/app.bsky.feed.post/xxx"
-}
-```
-
-### AI Agent Team API
-
-The agent team runs five specialized agents in a pipeline.
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `POST` | `/api/agents/pipeline/` | Run full 5-stage pipeline |
-| `POST` | `/api/agents/monitor/` | Stage 1: Volatility Monitor (Deriv price scan) |
-| `POST` | `/api/agents/analyst/` | Stage 2: Event Analyst (news + LLM analysis) |
-| `POST` | `/api/agents/advisor/` | Stage 3: Portfolio Advisor (personalized impact) |
-| `POST` | `/api/agents/sentinel/` | Stage 4: Behavioral Sentinel (trading pattern check) |
-| `POST` | `/api/agents/content-gen/` | Stage 5: Content Generator (Bluesky publish) |
-| `POST` | `/api/agents/chat/` | General chat with automatic agent routing |
-
-#### Pipeline Flow
-
-```
-[1] Volatility Monitor ──> [2] Event Analyst ──> [3] Portfolio Advisor
-         (Deriv)               (News+LLM)            (Portfolio)
-                                                          │
-[5] Content Generator <── [4] Behavioral Sentinel <───────┘
-       (Bluesky)              (Trade History)
-```
-
-#### Example: Run Full Pipeline
-
-```bash
-curl -X POST http://localhost:8000/api/agents/pipeline/ \
-  -H "Content-Type: application/json" \
-  -d '{
-    "custom_event": { "instrument": "BTC/USD", "change_pct": 5.2 },
-    "user_portfolio": [
-      {"instrument": "BTC/USD", "direction": "long", "size": 0.5, "entry_price": 64000, "pnl": 1617}
-    ]
-  }'
-```
-
-```json
-{
-  "status": "success",
-  "volatility_event": {
-    "instrument": "BTC/USD",
-    "price_change_pct": 5.2,
-    "direction": "spike",
-    "magnitude": "high"
-  },
-  "analysis_report": {
-    "event_summary": "BTC/USD surged 5.2% in the last hour...",
-    "root_causes": ["Institutional buying pressure", "Short squeeze"],
-    "sentiment": "bullish",
-    "sentiment_score": 0.78
-  },
-  "personalized_insight": {
-    "impact_summary": "Your long BTC position is up $1,617...",
-    "risk_assessment": "medium",
-    "suggestions": ["Consider taking partial profits", "Move stop-loss to breakeven"]
-  },
-  "sentinel_insight": {
-    "personalized_warning": "Your recent win streak may lead to overconfidence...",
-    "risk_level": "medium"
-  },
-  "market_commentary": {
-    "post": "BTC just ripped 5.2% in an hour...",
-    "published": true,
-    "bluesky_url": "https://bsky.app/profile/tradeiq-analyst.bsky.social/post/xxx"
-  },
-  "pipeline_started_at": "2026-02-08T10:00:00Z",
-  "pipeline_finished_at": "2026-02-08T10:00:12Z"
-}
-```
-
-### Chat API
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `POST` | `/api/chat/ask/` | REST chat endpoint (fallback when WebSocket unavailable) |
-| `WS` | `/ws/chat/` | WebSocket chat with real-time streaming |
-
-#### WebSocket Chat
-
-```javascript
-const ws = new WebSocket("ws://localhost:8000/ws/chat/?user_id=user-uuid");
-ws.onopen = () => ws.send(JSON.stringify({ message: "Analyze EUR/USD trend" }));
-ws.onmessage = (event) => console.log(JSON.parse(event.data));
-```
-
-### Demo API
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/api/demo/scenarios/` | List available demo scenarios |
-| `POST` | `/api/demo/seed/` | Seed demo data (creates test user + trades) |
-| `POST` | `/api/demo/load-scenario/` | Load a specific demo scenario (revenge_trading, overtrading, etc.) |
-| `POST` | `/api/demo/analyze/` | Analyze a demo scenario and return nudges |
-| `POST` | `/api/demo/wow-moment/` | Trigger the full "wow moment" demo experience |
+</details>
 
 ---
 
-## External APIs Used
+<details>
+<summary><h2>Design Decisions</h2></summary>
 
-| API | Purpose | Protocol |
-|-----|---------|----------|
-| **Deriv API** | Live market prices, historical candles, portfolio, active symbols, reality check | WebSocket (`wss://ws.derivws.com/websockets/v3`) |
-| **DeepSeek** | Primary LLM for market analysis, content generation, agent chat | REST (OpenAI-compatible) |
-| **OpenRouter** | Fallback LLM provider (automatic failover) | REST (OpenAI-compatible) |
-| **NewsAPI** | Financial news headlines and keyword search | REST (`https://newsapi.org/v2/`) |
-| **Finnhub** | Economic calendar, chart pattern recognition | REST (`https://finnhub.io/api/v1/`) |
-| **Bluesky** | Social content publishing, market discussion search | AT Protocol (`https://bsky.social/`) |
-| **Supabase** | PostgreSQL database, JWT authentication, Google OAuth | REST + Realtime |
-| **Upstash Redis** | Django Channels layer for WebSocket message pub/sub | Redis over TLS |
+| Decision | Rationale |
+|----------|-----------|
+| **No predictions/signals** | Hackathon requirement: educational analysis only, brand-safe |
+| **Supportive coaching** | Nudges inform and suggest, never block trades or judge |
+| **Graceful degradation** | Frontend works with mock data when backend is offline |
+| **LLM fallback chain** | DeepSeek direct -> OpenRouter with automatic failover |
+| **WebSocket + REST** | Chat uses WebSocket with REST fallback for reliability |
+| **Function calling** | DeepSeek native tool use instead of LangGraph for simplicity |
+| **Multi-persona content** | Different AI voices (Calm Analyst, Data Nerd, Trading Coach) |
+| **Compliance-first** | Every LLM output filtered for blocklisted terms + disclaimer injection |
 
----
-
-## Authentication
-
-TradeIQ uses **Supabase Auth** with JWT tokens:
-
-1. User signs in via Google OAuth on the frontend (`/login`)
-2. Supabase issues a JWT access token stored in the browser
-3. Frontend sends `Authorization: Bearer <token>` header on API calls
-4. Backend `SupabaseJWTAuthentication` middleware validates the JWT (HS256)
-5. First-time users get a `UserProfile` auto-created in the database
-
-Most API endpoints work without authentication for demo purposes. Endpoints that require auth (like `analyze_batch`) will return `401 Unauthorized` without a valid token.
+</details>
 
 ---
 
-## Frontend Pages
+<details>
+<summary><h2>Compliance System</h2></summary>
 
-| Page | Route | Description |
-|------|-------|-------------|
-| Dashboard | `/` | Overview with portfolio KPIs, P&L chart, market insights, data source badge |
-| Market Analysis | `/market` | Instrument selector, free-form analyst Q&A, technicals, sentiment, economic calendar, headlines |
-| Behavioral Coaching | `/behavior` | Demo scenario loader, trade pattern visualization, nudge cards, Deriv sync |
-| Content Engine | `/content` | Persona selector, content generator, Bluesky publish, post history |
-| Agent Pipeline | `/pipeline` | Visual 5-stage pipeline demo with sequential animation and collapsible result cards |
-| Login | `/login` | Google OAuth sign-in page |
+All AI outputs pass through a compliance filter before reaching users:
 
----
+**Blocklist**: `guaranteed`, `moon`, `easy money`, `get rich`, `sure thing`
 
-## Development
+**Prediction detection**: Regex matching `will hit`, `price will`, `going to`
 
-### Prerequisites
+**Auto-disclaimer**: Every response includes `"This is analysis, not financial advice."`
 
-- Python 3.11+ (conda recommended)
-- Node.js 20+
-- Supabase project (free tier works)
-- At least one LLM API key (DeepSeek or OpenRouter)
-- Deriv API app ID and token (free at [api.deriv.com](https://api.deriv.com))
+**System prompts**: All agents have master compliance rules embedded:
+- Never predict future prices
+- Always use past/present tense
+- Frame everything as educational
+- Reference specific data sources
 
-### Running Tests
-
-```bash
-# Backend unit tests
-cd backend && python manage.py test
-
-# LLM resilience tests
-cd backend && python -m pytest tests/test_llm_resilience.py -v
-
-# Environment variable verification
-python scripts/verify_env.py
-
-# Full feature test suite (requires running backend)
-python scripts/test_all_features.py
-```
-
-### Key Design Decisions
-
-- **No trading signals or predictions** - Educational analysis only (hackathon brand-safe requirement)
-- **Graceful degradation** - Frontend works with mock data when backend is offline (DataSourceBadge shows status)
-- **LLM fallback chain** - Supports DeepSeek and OpenRouter with automatic failover
-- **WebSocket + REST dual mode** - Chat uses WebSocket with REST fallback for reliability
-- **Supportive coaching** - Behavioral nudges are encouraging and non-restrictive
-- **Multi-persona content** - Different AI personas for varied social media voice
-
----
-
-## Deployment Options
-
-| Method | Frontend | Backend | Best For |
-|--------|----------|---------|----------|
-| Docker Compose | Container :3000 | Container :8000 | Local dev, hackathon demo |
-| Vercel + Railway | Vercel (serverless) | Railway (persistent) | Production cloud |
-| Render Blueprint | Render (Docker) | Render (Docker) | One-click cloud deploy |
-| Direct (no Docker) | `npm start` | `daphne` | Development |
-
-> **Important**: The backend requires a persistent server (not serverless) because it uses
-> Django Channels with Daphne for WebSocket support. It cannot run on Vercel's serverless
-> platform. The frontend can be deployed to Vercel without issues.
-
-See [DEPLOY.md](./DEPLOY.md) for step-by-step instructions for all deployment methods.
+</details>
 
 ---
 
 ## License
 
-Built for the Deriv AI Hackathon 2026.
+Built for the [Deriv AI Hackathon 2026](https://deriv.com).
+
+<p align="center">
+  <img src="frontend/public/tradeiq_favicon.svg" width="40" alt="TradeIQ" />
+  <br />
+  <sub>TradeIQ - Making trading intelligent</sub>
+</p>

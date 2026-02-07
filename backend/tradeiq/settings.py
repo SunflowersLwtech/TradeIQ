@@ -135,9 +135,10 @@ GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_CLIENT_SECRET", "")
 GOOGLE_CALLBACK_URL = os.environ.get("CALLBACK_URL", "")
 
 # CORS: Allow Next.js frontend (Phase 4)
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",
-]
+# Set CORS_ALLOWED_ORIGINS env var for cloud deployment (comma-separated)
+# e.g. CORS_ALLOWED_ORIGINS=https://tradeiq.vercel.app,http://localhost:3000
+_cors_origins = os.environ.get("CORS_ALLOWED_ORIGINS", "http://localhost:3000")
+CORS_ALLOWED_ORIGINS = [o.strip() for o in _cors_origins.split(",") if o.strip()]
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_ALL_ORIGINS = DEBUG  # Only allow all origins in debug/demo mode
 
