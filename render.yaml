@@ -8,8 +8,10 @@ services:
   - type: web
     name: tradeiq-backend
     runtime: docker
+    plan: free
     dockerfilePath: ./backend/Dockerfile
     dockerContext: ./backend
+    healthCheckPath: /api/market/insights/
     envVars:
       - key: DATABASE_URL
         sync: false
@@ -41,12 +43,12 @@ services:
         sync: false
       - key: REDIS_URL
         sync: false
-    healthCheckPath: /api/market/insights/
 
   # ── Frontend: Next.js ──
   - type: web
     name: tradeiq-frontend
     runtime: docker
+    plan: free
     dockerfilePath: ./frontend/Dockerfile
     dockerContext: ./frontend
     envVars:
