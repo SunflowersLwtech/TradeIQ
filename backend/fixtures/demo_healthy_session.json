@@ -1,0 +1,12 @@
+[
+  {
+    "model": "behavior.userprofile",
+    "pk": "aaaaaaaa-0000-4000-8000-000000000004",
+    "fields": {
+      "email": "demo-healthy@tradeiq.local",
+      "name": "Demo Healthy Session",
+      "preferences": {},
+      "watchlist": ["EUR/USD"]
+    }
+  }
+]

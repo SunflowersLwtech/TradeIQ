@@ -1,0 +1,92 @@
+[
+  {
+    "model": "behavior.userprofile",
+    "pk": "aaaaaaaa-0000-4000-8000-000000000001",
+    "fields": {
+      "email": "demo@tradeiq.local",
+      "name": "Demo User",
+      "preferences": {},
+      "watchlist": ["EUR/USD", "GBP/USD"]
+    }
+  },
+  {
+    "model": "behavior.trade",
+    "pk": "bbbbbbbb-0001-4000-8000-000000000001",
+    "fields": {
+      "user": "aaaaaaaa-0000-4000-8000-000000000001",
+      "instrument": "EUR/USD",
+      "direction": "sell",
+      "entry_price": "1.0850",
+      "exit_price": "1.0830",
+      "pnl": "-200",
+      "duration_seconds": 300,
+      "opened_at": "2026-02-07T10:00:00Z",
+      "closed_at": "2026-02-07T10:05:00Z",
+      "is_mock": true
+    }
+  },
+  {
+    "model": "behavior.trade",
+    "pk": "bbbbbbbb-0002-4000-8000-000000000002",
+    "fields": {
+      "user": "aaaaaaaa-0000-4000-8000-000000000001",
+      "instrument": "EUR/USD",
+      "direction": "sell",
+      "entry_price": "1.0835",
+      "exit_price": "1.0820",
+      "pnl": "-150",
+      "duration_seconds": 45,
+      "opened_at": "2026-02-07T10:02:00Z",
+      "closed_at": "2026-02-07T10:02:45Z",
+      "is_mock": true
+    }
+  },
+  {
+    "model": "behavior.trade",
+    "pk": "bbbbbbbb-0003-4000-8000-000000000003",
+    "fields": {
+      "user": "aaaaaaaa-0000-4000-8000-000000000001",
+      "instrument": "EUR/USD",
+      "direction": "buy",
+      "entry_price": "1.0825",
+      "exit_price": "1.0807",
+      "pnl": "-180",
+      "duration_seconds": 30,
+      "opened_at": "2026-02-07T10:04:00Z",
+      "closed_at": "2026-02-07T10:04:30Z",
+      "is_mock": true
+    }
+  },
+  {
+    "model": "behavior.trade",
+    "pk": "bbbbbbbb-0004-4000-8000-000000000004",
+    "fields": {
+      "user": "aaaaaaaa-0000-4000-8000-000000000001",
+      "instrument": "GBP/USD",
+      "direction": "sell",
+      "entry_price": "1.2650",
+      "exit_price": "1.2625",
+      "pnl": "-250",
+      "duration_seconds": 20,
+      "opened_at": "2026-02-07T10:05:30Z",
+      "closed_at": "2026-02-07T10:05:50Z",
+      "is_mock": true
+    }
+  },
+  {
+    "model": "behavior.trade",
+    "pk": "bbbbbbbb-0005-4000-8000-000000000005",
+    "fields": {
+      "user": "aaaaaaaa-0000-4000-8000-000000000001",
+      "instrument": "EUR/USD",
+      "direction": "buy",
+      "entry_price": "1.0810",
+      "exit_price": "1.0780",
+      "pnl": "-300",
+      "duration_seconds": 15,
+      "opened_at": "2026-02-07T10:07:00Z",
+      "closed_at": "2026-02-07T10:07:15Z",
+      "is_mock": true
+    }
+  }
+]
