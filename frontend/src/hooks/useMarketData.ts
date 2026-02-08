@@ -56,54 +56,32 @@ const NAME_MAP: Record<string, string> = {
   "Volatility 100": "Volatility 100 Index",
 };
 
-async function getPreferredInstruments(): Promise<string[]> {
-  try {
-    const profilesResp = await api.getUserProfiles();
-    const profiles = Array.isArray(profilesResp) ? profilesResp : profilesResp.results || [];
-    const watchlist = profiles.flatMap((p) => (Array.isArray(p.watchlist) ? p.watchlist : []));
-    const unique = Array.from(new Set(watchlist.filter(Boolean)));
-    if (unique.length > 0) {
-      return unique.slice(0, 8);
-    }
-  } catch {
-    // ignore and fall through to market brief
-  }
 
-  const brief = await api.getMarketBrief();
-  return (brief.instruments || []).map((item) => item.symbol).filter(Boolean).slice(0, 8);
-}
-
-export function useTickerData(updateInterval = 5000) {
+export function useTickerData(updateInterval = 10000) {
   const [tickers, setTickers] = useState<TickerItem[]>(FALLBACK_TICKERS);
   const [isUsingMock, setIsUsingMock] = useState(true);
   const previousPricesRef = useRef<Record<string, number>>({});
-  const instrumentsRef = useRef<string[]>([]);
-  const instrumentsLoadedAtRef = useRef<number>(0);
 
+  // Use the market brief endpoint (1 request) instead of N individual
+  // getLivePrice calls. The brief already fetches all instrument prices
+  // in parallel on the backend.
   const fetchTickers = useCallback(async () => {
-    const now = Date.now();
-    if (instrumentsRef.current.length === 0 || now - instrumentsLoadedAtRef.current > 60000) {
-      instrumentsRef.current = await getPreferredInstruments();
-      instrumentsLoadedAtRef.current = now;
-    }
-    const instruments = instrumentsRef.current;
-    const responses = await Promise.all(
-      instruments.map((symbol) => api.getLivePrice(symbol).catch(() => null))
-    );
+    const brief = await api.getMarketBrief();
+    const instruments = brief.instruments || [];
 
-    const live = responses
-      .filter((item): item is NonNullable<typeof item> => !!item && item.price !== null)
+    const live = instruments
+      .filter((item) => item.price != null)
       .map((item) => {
-        const prev = previousPricesRef.current[item.instrument];
+        const prev = previousPricesRef.current[item.symbol];
         const next = item.price as number;
-        const pct = prev && prev !== 0 ? ((next - prev) / prev) * 100 : 0;
-        previousPricesRef.current[item.instrument] = next;
+        const pct = item.change_percent ?? (prev && prev !== 0 ? ((next - prev) / prev) * 100 : 0);
+        previousPricesRef.current[item.symbol] = next;
 
         return {
-          symbol: item.instrument,
+          symbol: item.symbol,
           price: next,
           change: pct,
-          icon: ICON_MAP[item.instrument] || "📊",
+          icon: ICON_MAP[item.symbol] || "📊",
         };
       });
 

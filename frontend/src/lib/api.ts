@@ -32,8 +32,22 @@ interface ApiOptions {
 class ApiClient {
   private baseUrl?: string;
 
+  // In-flight request deduplication: prevents the same endpoint from being
+  // called multiple times simultaneously (e.g., getUserProfiles from 3+ hooks)
+  private _inflight = new Map<string, Promise<unknown>>();
+
   constructor(baseUrl?: string) {
     this.baseUrl = baseUrl?.trim() ? normalizeApiBase(baseUrl) : undefined;
+  }
+
+  /** Deduplicate concurrent GET requests to the same endpoint. */
+  private dedup<T>(key: string, fn: () => Promise<T>): Promise<T> {
+    const existing = this._inflight.get(key);
+    if (existing) return existing as Promise<T>;
+
+    const promise = fn().finally(() => this._inflight.delete(key));
+    this._inflight.set(key, promise);
+    return promise;
   }
 
   private getBaseUrl(): string {
@@ -74,10 +88,12 @@ class ApiClient {
       throw new ApiError(401, "Authentication required. Please sign in and try again.");
     }
 
+    // 15-second timeout to avoid hanging on Render cold starts
     const response = await fetch(`${this.getBaseUrl()}${endpoint}`, {
       method,
       headers: requestHeaders,
       body: body ? JSON.stringify(body) : undefined,
+      signal: AbortSignal.timeout(15000),
     });
 
     if (!response.ok) {
@@ -94,10 +110,13 @@ class ApiClient {
   }
 
   async getMarketBrief(instruments?: string[]) {
-    return this.request<MarketBrief>("/market/brief/", {
-      method: "POST",
-      body: { instruments },
-    });
+    const key = `brief:${instruments?.join(",") ?? ""}`;
+    return this.dedup(key, () =>
+      this.request<MarketBrief>("/market/brief/", {
+        method: "POST",
+        body: { instruments },
+      })
+    );
   }
 
   async askMarketAnalyst(question: string) {
@@ -135,19 +154,25 @@ class ApiClient {
     });
   }
 
-  // Behavior endpoints
+  // Behavior endpoints (deduplicated — these are called by multiple hooks on mount)
   async getUserProfiles() {
-    return this.request<PaginatedResponse<UserProfile>>("/behavior/profiles/");
+    return this.dedup("profiles", () =>
+      this.request<PaginatedResponse<UserProfile>>("/behavior/profiles/")
+    );
   }
 
   async getTrades(userId?: string) {
     const query = userId ? `?user_id=${userId}` : "";
-    return this.request<PaginatedResponse<Trade>>(`/behavior/trades/${query}`);
+    return this.dedup(`trades:${userId ?? ""}`, () =>
+      this.request<PaginatedResponse<Trade>>(`/behavior/trades/${query}`)
+    );
   }
 
   async getBehavioralMetrics(userId?: string) {
     const query = userId ? `?user_id=${userId}` : "";
-    return this.request<PaginatedResponse<BehavioralMetric>>(`/behavior/metrics/${query}`);
+    return this.dedup(`metrics:${userId ?? ""}`, () =>
+      this.request<PaginatedResponse<BehavioralMetric>>(`/behavior/metrics/${query}`)
+    );
   }
 
   async analyzeBatch(userId: string, hours: number = 24) {

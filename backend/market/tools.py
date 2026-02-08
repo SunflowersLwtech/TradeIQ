@@ -143,6 +143,7 @@ def _run_async_in_new_thread(coro):
 def fetch_price_data(instrument: str) -> Dict[str, Any]:
     """
     Fetch current price data for an instrument from Deriv WebSocket API.
+    Uses Redis cache to avoid redundant WebSocket calls (5-second TTL).
 
     Args:
         instrument: Trading instrument symbol (e.g., "EUR/USD")
@@ -150,8 +151,30 @@ def fetch_price_data(instrument: str) -> Dict[str, Any]:
     Returns:
         Dict with price, change, etc.
     """
+    # Check cache first
+    try:
+        from .cache import get_cached_price, set_cached_price
+        cached = get_cached_price(instrument)
+        if cached is not None:
+            return {
+                "instrument": instrument,
+                "price": cached,
+                "timestamp": datetime.now().isoformat(),
+                "source": "deriv",
+                "cached": True,
+            }
+    except Exception:
+        pass
+
     try:
         result = _run_async_in_new_thread(_fetch_deriv_price_async(instrument))
+        # Cache successful result
+        if result and result.get("price") is not None:
+            try:
+                from .cache import set_cached_price
+                set_cached_price(instrument, result["price"], ttl_seconds=5)
+            except Exception:
+                pass
         return result
     except Exception as e:
         return {
@@ -420,7 +443,12 @@ def search_news(query: str, limit: int = 5) -> List[Dict[str, Any]]:
     Returns:
         List of news articles
     """
-    combined = _search_newsapi(query, limit=limit) + _search_finnhub_news(query, limit=limit)
+    # Fetch from both sources in parallel
+    from concurrent.futures import ThreadPoolExecutor
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        newsapi_future = executor.submit(_search_newsapi, query, limit)
+        finnhub_future = executor.submit(_search_finnhub_news, query, limit)
+        combined = newsapi_future.result() + finnhub_future.result()
     if not combined:
         return []
 
@@ -715,17 +743,32 @@ def generate_market_brief(instruments: List[str] = None) -> Dict[str, Any]:
             "source": "database",
         }
 
-    instrument_data = []
-    for inst in instruments[:6]:  # Max 6
+    # Fetch all instruments in parallel instead of serial loop
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
+    def _fetch_instrument(inst: str) -> Dict[str, Any]:
         price = fetch_price_data(inst)
         history = fetch_price_history(inst, timeframe="1h", count=24)
-        instrument_data.append({
+        return {
             "symbol": inst,
             "price": price.get("price"),
             "change": history.get("change"),
             "change_percent": history.get("change_percent"),
             "source": price.get("source", "deriv"),
-        })
+        }
+
+    instrument_data = []
+    with ThreadPoolExecutor(max_workers=6) as executor:
+        futures = {executor.submit(_fetch_instrument, inst): inst for inst in instruments[:6]}
+        for future in as_completed(futures):
+            try:
+                instrument_data.append(future.result())
+            except Exception:
+                inst = futures[future]
+                instrument_data.append({
+                    "symbol": inst, "price": None, "change": None,
+                    "change_percent": None, "source": "deriv",
+                })
 
     data_summary = "\n".join([
         f"- {d['symbol']}: {d['price'] or 'N/A'}"
