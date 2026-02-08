@@ -122,7 +122,7 @@ class ApiClient {
   // Normalize: empty array is semantically identical to undefined on the backend,
   // so we collapse both to the same dedup key and request body.
   async getMarketBrief(instruments?: string[]) {
-    const normalized = instruments?.length ? instruments : undefined;
+    const normalized = instruments?.length ? [...new Set(instruments)] : undefined;
     const key = `brief:${normalized ? [...normalized].sort().join(",") : ""}`;
     return this.dedup(key, () =>
       this.request<MarketBrief>("/market/brief/", {
