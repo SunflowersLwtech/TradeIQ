@@ -12,7 +12,7 @@ import api, { type MarketSentiment, type MarketTechnicals } from "@/lib/api";
 import { useInstrumentUniverse, useEconomicCalendar, useTopHeadlines } from "@/hooks/useMarketData";
 
 const PnLChart = dynamic(() => import("@/components/market/PnLChart"), {
-  loading: () => <div className="bg-card border border-border rounded-md p-6 h-[440px] animate-shimmer" />,
+  loading: () => <div className="bg-card border border-border rounded-md p-6 h-[400px] animate-shimmer" />,
   ssr: false,
 });
 
