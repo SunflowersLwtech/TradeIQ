@@ -88,12 +88,13 @@ class ApiClient {
       throw new ApiError(401, "Authentication required. Please sign in and try again.");
     }
 
-    // 15-second timeout to avoid hanging on Render cold starts
+    // 30-second timeout: Render free tier cold starts can take 20-30s,
+    // and market/brief needs multiple Deriv WebSocket round-trips on top
     const response = await fetch(`${this.getBaseUrl()}${endpoint}`, {
       method,
       headers: requestHeaders,
       body: body ? JSON.stringify(body) : undefined,
-      signal: AbortSignal.timeout(15000),
+      signal: AbortSignal.timeout(30000),
     });
 
     if (!response.ok) {
@@ -109,6 +110,7 @@ class ApiClient {
     return this.request<MarketInsightsResponse>("/market/insights/");
   }
 
+  // Safe to dedup: getMarketBrief is a read-only query despite using POST (body params)
   async getMarketBrief(instruments?: string[]) {
     const key = `brief:${instruments?.join(",") ?? ""}`;
     return this.dedup(key, () =>

@@ -168,7 +168,10 @@ def fetch_price_data(instrument: str) -> Dict[str, Any]:
 
     try:
         result = _run_async_in_new_thread(_fetch_deriv_price_async(instrument))
-        # Cache successful result
+        # Cache successful result (short 5s TTL for live prices — we want
+        # near-real-time data but still deduplicate the burst of concurrent
+        # requests that fire when the dashboard mounts multiple hooks at once.
+        # This differs from cache.py's 300s default which is for longer-lived data.)
         if result and result.get("price") is not None:
             try:
                 from .cache import set_cached_price
