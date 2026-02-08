@@ -24,6 +24,7 @@ try:
     _CACHE_AVAILABLE = True
 except ImportError:
     _CACHE_AVAILABLE = False
+    logger.info("Redis cache not available, running without price cache")
 
 
 # Deriv symbol mapping: user-friendly -> Deriv API symbol

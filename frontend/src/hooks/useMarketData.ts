@@ -65,6 +65,10 @@ export function useTickerData(updateInterval = 10000) {
   const [tickers, setTickers] = useState<TickerItem[]>(FALLBACK_TICKERS);
   const [isUsingMock, setIsUsingMock] = useState(true);
   const previousPricesRef = useRef<Record<string, number>>({});
+  // Guard against request stacking: if getMarketBrief takes longer than
+  // the polling interval (possible — timeout is 45s), skip the next tick
+  // rather than piling up concurrent requests.
+  const isFetchingRef = useRef(false);
 
   // Use the market brief endpoint (1 request) instead of N individual
   // getLivePrice calls. The brief already fetches all instrument prices
@@ -72,31 +76,37 @@ export function useTickerData(updateInterval = 10000) {
   // generate_market_brief(instruments=None) discovers instruments from
   // user watchlists and recent trades server-side.
   const fetchTickers = useCallback(async () => {
-    const brief = await api.getMarketBrief();
-    const instruments = brief.instruments || [];
+    if (isFetchingRef.current) return;
+    isFetchingRef.current = true;
+    try {
+      const brief = await api.getMarketBrief();
+      const instruments = brief.instruments || [];
 
-    const live = instruments
-      .filter((item) => item.price != null)
-      .map((item) => {
-        const prev = previousPricesRef.current[item.symbol];
-        const next = item.price as number;
-        const pct = item.change_percent ?? (prev && prev !== 0 ? ((next - prev) / prev) * 100 : 0);
-        previousPricesRef.current[item.symbol] = next;
+      const live = instruments
+        .filter((item) => item.price != null)
+        .map((item) => {
+          const prev = previousPricesRef.current[item.symbol];
+          const next = item.price as number;
+          const pct = item.change_percent ?? (prev && prev !== 0 ? ((next - prev) / prev) * 100 : 0);
+          previousPricesRef.current[item.symbol] = next;
 
-        return {
-          symbol: item.symbol,
-          price: next,
-          change: pct,
-          icon: ICON_MAP[item.symbol] || "📊",
-        };
-      });
+          return {
+            symbol: item.symbol,
+            price: next,
+            change: pct,
+            icon: ICON_MAP[item.symbol] || "📊",
+          };
+        });
 
-    if (live.length === 0) {
-      throw new Error("No live ticker data available");
+      if (live.length === 0) {
+        throw new Error("No live ticker data available");
+      }
+
+      setTickers(live);
+      setIsUsingMock(false);
+    } finally {
+      isFetchingRef.current = false;
     }
-
-    setTickers(live);
-    setIsUsingMock(false);
   }, []);
 
   useEffect(() => {
