@@ -14,9 +14,9 @@ import requests
 import asyncio
 import threading
 from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime, timezone
 
 logger = logging.getLogger(__name__)
-from datetime import datetime, timezone
 
 # Gracefully handle missing Redis — cache is optional
 try:
@@ -164,7 +164,7 @@ def fetch_price_data(instrument: str) -> Dict[str, Any]:
     """
     # Check cache first (short 5s TTL for live prices — deduplicates the burst
     # of concurrent requests that fire when dashboard hooks mount at once.
-    # This differs from cache.py's 300s default which is for longer-lived data.)
+    # This differs from cache.py's 300s default which is for longer-lived data.
     if _CACHE_AVAILABLE:
         try:
             cached = get_cached_price(instrument)

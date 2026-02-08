@@ -21,13 +21,20 @@ function resolveApiBase(): string {
   return DEFAULT_LOCAL_API_BASE;
 }
 
+// API request timeout constants (milliseconds)
+const TIMEOUT_DEFAULT = 15_000;     // standard API calls
+const TIMEOUT_TECHNICALS = 20_000;  // Deriv WS history + computation
+const TIMEOUT_ANALYSIS = 25_000;    // pattern analysis + LLM nudge
+const TIMEOUT_LLM = 30_000;        // LLM reasoning / sentiment
+const TIMEOUT_BRIEF = 45_000;      // parallel Deriv WS + LLM summary
+
 interface ApiOptions {
   method?: string;
   body?: unknown;
   headers?: Record<string, string>;
   token?: string;
   requiresAuth?: boolean;
-  /** Request timeout in ms. Defaults to 15s; slow endpoints should set higher. */
+  /** Request timeout in ms. Defaults to TIMEOUT_DEFAULT (15s). */
   timeoutMs?: number;
 }
 
@@ -77,7 +84,7 @@ class ApiClient {
   }
 
   private async request<T>(endpoint: string, options: ApiOptions = {}): Promise<T> {
-    const { method = "GET", body, headers = {}, token, requiresAuth = false, timeoutMs = 15000 } = options;
+    const { method = "GET", body, headers = {}, token, requiresAuth = false, timeoutMs = TIMEOUT_DEFAULT } = options;
 
     const requestHeaders: Record<string, string> = {
       "Content-Type": "application/json",
@@ -111,14 +118,17 @@ class ApiClient {
     return this.request<MarketInsightsResponse>("/market/insights/");
   }
 
-  // Safe to dedup: getMarketBrief is a read-only query despite using POST (body params)
+  // Safe to dedup: getMarketBrief is a read-only query despite using POST (body params).
+  // Normalize: empty array is semantically identical to undefined on the backend,
+  // so we collapse both to the same dedup key and request body.
   async getMarketBrief(instruments?: string[]) {
-    const key = `brief:${instruments ? [...instruments].sort().join(",") : ""}`;
+    const normalized = instruments?.length ? instruments : undefined;
+    const key = `brief:${normalized ? [...normalized].sort().join(",") : ""}`;
     return this.dedup(key, () =>
       this.request<MarketBrief>("/market/brief/", {
         method: "POST",
-        body: { instruments },
-        timeoutMs: 45000,  // parallel Deriv WS + LLM summary
+        body: { instruments: normalized },
+        timeoutMs: TIMEOUT_BRIEF,
       })
     );
   }
@@ -127,7 +137,7 @@ class ApiClient {
     return this.request<MarketAnalysis>("/market/ask/", {
       method: "POST",
       body: { question },
-      timeoutMs: 30000,  // LLM reasoning
+      timeoutMs: TIMEOUT_LLM,
     });
   }
 
@@ -149,7 +159,7 @@ class ApiClient {
     return this.request<MarketTechnicals>("/market/technicals/", {
       method: "POST",
       body: { instrument, timeframe },
-      timeoutMs: 20000,  // Deriv WS history + computation
+      timeoutMs: TIMEOUT_TECHNICALS,
     });
   }
 
@@ -157,7 +167,7 @@ class ApiClient {
     return this.request<MarketSentiment>("/market/sentiment/", {
       method: "POST",
       body: { instrument },
-      timeoutMs: 30000,  // news APIs + LLM sentiment
+      timeoutMs: TIMEOUT_LLM,
     });
   }
 
@@ -187,7 +197,7 @@ class ApiClient {
       method: "POST",
       body: { user_id: userId, hours },
       requiresAuth: true,
-      timeoutMs: 25000,  // pattern analysis + LLM nudge
+      timeoutMs: TIMEOUT_ANALYSIS,
     });
   }
 
