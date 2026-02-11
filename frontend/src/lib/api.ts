@@ -177,6 +177,7 @@ class ApiClient {
     return this.request<MarketHistory>("/market/history/", {
       method: "POST",
       body: { instrument, timeframe, count },
+      timeoutMs: TIMEOUT_TECHNICALS,
     });
   }
 
