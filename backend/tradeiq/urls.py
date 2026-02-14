@@ -5,7 +5,8 @@ from django.conf import settings
 from django.conf.urls.static import static
 
 
-def health_check(request):
+async def health_check(request):
+    """Async so it bypasses the sync thread pool and never blocks on slow views."""
     return JsonResponse({"status": "ok"})
 
 
