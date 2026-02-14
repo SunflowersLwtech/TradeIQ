@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import dynamic from "next/dynamic";
 import AppShell from "@/components/layout/AppShell";
 import { usePageState } from "@/hooks/usePageState";
 import BehaviorCard from "@/components/behavior/BehaviorCard";
@@ -13,6 +14,16 @@ import { useTrades, useBehaviorPatterns, useSessionStats } from "@/hooks/useBeha
 import { useDerivAuth } from "@/hooks/useDerivAuth";
 import api from "@/lib/api";
 import type { ScenarioAnalysis } from "@/lib/api";
+
+const TradingTwinChart = dynamic(
+  () => import("@/components/behavior/TradingTwinChart"),
+  {
+    loading: () => (
+      <div className="bg-card border border-border rounded-md p-6 h-[200px] animate-shimmer" />
+    ),
+    ssr: false,
+  }
+);
 
 // ── Helpers to extract display values from nested ScenarioAnalysis ──
 function getRiskLevel(sa: ScenarioAnalysis): string {
@@ -282,6 +293,9 @@ export default function BehaviorPage() {
             </>
           )}
         </div>
+
+        {/* Trading Twin */}
+        <TradingTwinChart />
 
         {/* AI Scenario Analysis Results */}
         {(scenarioAnalysis || analysisError) && (
