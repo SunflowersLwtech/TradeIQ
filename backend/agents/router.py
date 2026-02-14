@@ -4,15 +4,24 @@ Routes user queries to appropriate tools via DeepSeek function calling
 """
 from typing import Dict, Any, List, Optional
 from agents.llm_client import get_llm_client
-from agents.prompts import SYSTEM_PROMPT_MARKET, SYSTEM_PROMPT_BEHAVIOR, SYSTEM_PROMPT_CONTENT
+from agents.prompts import (
+    SYSTEM_PROMPT_MARKET,
+    SYSTEM_PROMPT_BEHAVIOR,
+    SYSTEM_PROMPT_CONTENT,
+    SYSTEM_PROMPT_COPYTRADING,
+    SYSTEM_PROMPT_TRADING,
+)
 from agents.tools_registry import (
     get_market_tools,
     get_behavior_tools,
     get_content_tools,
-    execute_tool
+    get_copytrading_tools,
+    get_trading_tools,
+    execute_tool,
 )
 from agents.compliance import check_compliance, append_disclaimer
 import json
+import re
 
 
 def route_query(
@@ -45,6 +54,14 @@ def route_query(
     elif agent_type == "content":
         tools = get_content_tools()
         system_prompt = SYSTEM_PROMPT_CONTENT
+    elif agent_type == "copytrading":
+        tools = get_copytrading_tools()
+        system_prompt = SYSTEM_PROMPT_COPYTRADING
+        if user_id:
+            query = f"User ID: {user_id}\n\n{query}"
+    elif agent_type == "trading":
+        tools = get_trading_tools()
+        system_prompt = SYSTEM_PROMPT_TRADING
     else:
         return {
             "response": f"Unknown agent type: {agent_type}",
@@ -120,6 +137,19 @@ def route_query(
             final_response = message.content
 
         final_response = final_response or ""
+        # Strip DeepSeek raw function-call XML that sometimes leaks
+        # into content instead of using the tool_calls API field
+        final_response = re.sub(
+            r'<[｜\|]DSML[｜\|]function_calls>.*?</[｜\|]DSML[｜\|]function_calls>',
+            '',
+            final_response,
+            flags=re.DOTALL,
+        ).strip()
+        if not final_response:
+            final_response = (
+                "I wasn't able to generate a complete analysis. "
+                "Please try rephrasing your question."
+            )
         passed, violations = check_compliance(final_response)
         if not passed:
             final_response = (
@@ -175,3 +205,13 @@ def route_behavior_query(query: str, user_id: str, context: Optional[Dict[str, A
 def route_content_query(query: str, context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     """Convenience function for content queries"""
     return route_query(query, agent_type="content", context=context)
+
+
+def route_copytrading_query(query: str, user_id: Optional[str] = None, context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    """Convenience function for copy trading queries"""
+    return route_query(query, agent_type="copytrading", user_id=user_id, context=context)
+
+
+def route_trading_query(query: str, context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    """Convenience function for trading queries"""
+    return route_query(query, agent_type="trading", context=context)
