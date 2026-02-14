@@ -133,14 +133,13 @@ class EconomicCalendarView(APIView):
 
 
 class TopHeadlinesView(APIView):
-    """GET /api/market/headlines/ — NewsAPI top business headlines."""
+    """GET /api/market/headlines/ — Trading & finance focused headlines for Deriv traders."""
     permission_classes = [AllowAny]
 
     def get(self, request):
         from .tools import fetch_top_headlines
-        category = request.query_params.get("category", "business")
         limit = int(request.query_params.get("limit", 10))
-        return Response({"headlines": fetch_top_headlines(category=category, limit=limit)})
+        return Response({"headlines": fetch_top_headlines(limit=limit)})
 
 
 class ActiveSymbolsView(APIView):

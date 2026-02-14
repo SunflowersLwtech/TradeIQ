@@ -405,67 +405,174 @@ def _search_newsapi(query: str, limit: int) -> List[Dict[str, Any]]:
 
 
 def _fetch_finnhub_headlines(limit: int = 10) -> List[Dict[str, Any]]:
-    """Fallback: fetch general market news from Finnhub (free tier)."""
+    """
+    Fallback: fetch trading-focused market news from Finnhub (forex, crypto, general).
+    Aggregates multiple categories to ensure trading relevance.
+    """
     api_key = os.environ.get("FINNHUB_API_KEY", "")
     if not api_key:
         return []
-    try:
-        response = requests.get(
-            "https://finnhub.io/api/v1/news",
-            params={"category": "general", "token": api_key},
-            timeout=5,
-        )
-        if response.status_code != 200:
-            return []
-        items = response.json()
-        if not isinstance(items, list):
-            return []
-        return [
-            {
-                "title": (item.get("headline") or "").strip(),
-                "description": (item.get("summary") or "").strip(),
-                "url": item.get("url", ""),
-                "publishedAt": (
-                    datetime.fromtimestamp(item["datetime"], tz=timezone.utc).isoformat()
-                    if isinstance(item.get("datetime"), (int, float)) and item["datetime"] > 0
-                    else ""
-                ),
-                "source": item.get("source", ""),
-            }
-            for item in items[:limit]
-            if (item.get("headline") or "").strip()
-        ]
-    except Exception:
-        return []
 
+    # Fetch from multiple relevant categories
+    categories = ["forex", "crypto", "general"]
+    all_articles = []
 
-def fetch_top_headlines(category: str = "business", country: str = "us", limit: int = 10) -> List[Dict[str, Any]]:
-    """Fetch top headlines from NewsAPI, falling back to Finnhub news."""
-    api_key = os.environ.get("NEWS_API_KEY", "")
-    if api_key:
+    for category in categories:
         try:
             response = requests.get(
-                "https://newsapi.org/v2/top-headlines",
-                params={"category": category, "country": country, "apiKey": api_key, "pageSize": limit},
+                "https://finnhub.io/api/v1/news",
+                params={"category": category, "token": api_key},
+                timeout=5,
+            )
+            if response.status_code != 200:
+                continue
+
+            items = response.json()
+            if not isinstance(items, list):
+                continue
+
+            for item in items:
+                headline = (item.get("headline") or "").strip()
+                if not headline:
+                    continue
+
+                all_articles.append({
+                    "title": headline,
+                    "description": (item.get("summary") or "").strip(),
+                    "url": item.get("url", ""),
+                    "publishedAt": (
+                        datetime.fromtimestamp(item["datetime"], tz=timezone.utc).isoformat()
+                        if isinstance(item.get("datetime"), (int, float)) and item["datetime"] > 0
+                        else ""
+                    ),
+                    "source": item.get("source", "Finnhub"),
+                    "category": category,
+                })
+        except Exception:
+            continue
+
+    # Deduplicate and sort by date
+    seen_urls = set()
+    deduped = []
+    for article in all_articles:
+        url = article.get("url", "")
+        if url and url not in seen_urls:
+            seen_urls.add(url)
+            deduped.append(article)
+
+    # Sort by published date (most recent first)
+    deduped.sort(key=lambda x: x.get("publishedAt", ""), reverse=True)
+
+    return deduped[:limit]
+
+
+def fetch_top_headlines(limit: int = 10) -> List[Dict[str, Any]]:
+    """
+    Fetch top trading & finance headlines from NewsAPI, falling back to Finnhub.
+    Focuses on forex, crypto, stocks, commodities, and market news relevant to Deriv traders.
+    """
+    api_key = os.environ.get("NEWS_API_KEY", "")
+
+    # Try NewsAPI with trading-specific search queries
+    if api_key:
+        try:
+            # Use /everything endpoint with trading-specific keywords for better relevance
+            # Focus on major international trading topics (not region-specific)
+            trading_keywords = "forex OR cryptocurrency OR \"stock market\" OR \"bitcoin\" OR \"EUR/USD\" OR \"gold prices\" OR \"oil prices\" OR \"crypto market\""
+
+            # Include major global financial news sources for diversity
+            trusted_sources = "bloomberg,reuters,financial-times,the-wall-street-journal,cnbc,fortune,business-insider"
+
+            response = requests.get(
+                "https://newsapi.org/v2/everything",
+                params={
+                    "q": trading_keywords,
+                    "sources": trusted_sources,  # Prioritize global financial sources
+                    "apiKey": api_key,
+                    "sortBy": "publishedAt",
+                    "language": "en",
+                    "pageSize": limit * 3,  # Fetch more for better filtering
+                },
                 timeout=5,
             )
             if response.status_code == 200:
-                articles = [
-                    {
-                        "title": a.get("title", ""),
-                        "description": a.get("description", ""),
-                        "url": a.get("url", ""),
-                        "publishedAt": a.get("publishedAt", ""),
-                        "source": a.get("source", {}).get("name", ""),
-                    }
-                    for a in response.json().get("articles", [])[:limit]
-                ]
-                if articles:
-                    return articles
-        except Exception:
-            pass
+                articles = response.json().get("articles", [])
 
-    # Fallback to Finnhub news (free tier, no rate limit issues)
+                # Filter for trading-relevant headlines
+                filtered = []
+                trading_terms = {
+                    "forex", "trading", "crypto", "bitcoin", "ethereum", "btc", "eth",
+                    "stock", "market", "usd", "eur", "gbp", "jpy", "gold", "xau",
+                    "currency", "exchange", "trader", "cfd", "options", "futures",
+                    "commodities", "oil", "silver", "nasdaq", "dow", "s&p"
+                }
+
+                for a in articles:
+                    title_lower = (a.get("title") or "").lower()
+                    desc_lower = (a.get("description") or "").lower()
+                    combined = f"{title_lower} {desc_lower}"
+
+                    # Check if article contains trading-related terms
+                    if any(term in combined for term in trading_terms):
+                        filtered.append({
+                            "title": a.get("title", ""),
+                            "description": a.get("description", ""),
+                            "url": a.get("url", ""),
+                            "publishedAt": a.get("publishedAt", ""),
+                            "source": a.get("source", {}).get("name", ""),
+                        })
+
+                        if len(filtered) >= limit:
+                            break
+
+                if filtered:
+                    return filtered
+
+            # If no results with trusted sources, try again without source restriction
+            if not filtered:
+                response = requests.get(
+                    "https://newsapi.org/v2/everything",
+                    params={
+                        "q": trading_keywords,
+                        "apiKey": api_key,
+                        "sortBy": "publishedAt",
+                        "language": "en",
+                        "pageSize": limit * 3,
+                    },
+                    timeout=5,
+                )
+                if response.status_code == 200:
+                    articles = response.json().get("articles", [])
+
+                    for a in articles:
+                        title_lower = (a.get("title") or "").lower()
+                        desc_lower = (a.get("description") or "").lower()
+                        combined = f"{title_lower} {desc_lower}"
+
+                        # Filter out region-specific terms to ensure global relevance
+                        region_specific = ["india", "indian rupee", "mumbai", "delhi", "sensex", "nifty"]
+                        if any(term in combined for term in region_specific):
+                            continue
+
+                        # Check if article contains trading-related terms
+                        if any(term in combined for term in trading_terms):
+                            filtered.append({
+                                "title": a.get("title", ""),
+                                "description": a.get("description", ""),
+                                "url": a.get("url", ""),
+                                "publishedAt": a.get("publishedAt", ""),
+                                "source": a.get("source", {}).get("name", ""),
+                            })
+
+                            if len(filtered) >= limit:
+                                break
+
+                    if filtered:
+                        return filtered
+        except Exception as e:
+            logger.debug(f"NewsAPI trading headlines failed: {e}")
+
+    # Fallback to Finnhub market news (forex, crypto, general market news)
     return _fetch_finnhub_headlines(limit)
 
 
