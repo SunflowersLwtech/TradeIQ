@@ -81,13 +81,15 @@ if os.environ.get("DATABASE_URL"):
         import dj_database_url
         _url = os.environ.get("DATABASE_URL")
         try:
-            DATABASES = {
-                "default": dj_database_url.config(
+            _db_config = dj_database_url.config(
                     default=_url,
-                    conn_max_age=600,
+                    conn_max_age=0,
                     conn_health_checks=True,
                 )
-            }
+            # Supabase PgBouncer (port 6543) uses transaction pooling —
+            # server-side cursors and persistent connections are incompatible.
+            _db_config["DISABLE_SERVER_SIDE_CURSORS"] = True
+            DATABASES = {"default": _db_config}
         except Exception as parse_err:
             import sys
             error_msg = str(parse_err).lower()

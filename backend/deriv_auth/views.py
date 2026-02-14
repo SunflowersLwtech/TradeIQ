@@ -1,6 +1,6 @@
 import logging
 
-from django.db import transaction
+from django.db import OperationalError, transaction
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -45,6 +45,7 @@ class OAuthCallbackView(APIView):
     def post(self, request):
         profile = _get_user_profile(request)
         if not profile:
+            logger.warning("Deriv OAuth callback: user profile not found for user %s", request.user)
             return Response(
                 {"detail": "User profile not found."},
                 status=status.HTTP_404_NOT_FOUND,
@@ -57,6 +58,31 @@ class OAuthCallbackView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        try:
+            saved_accounts = self._save_accounts(profile, accounts_data)
+        except OperationalError:
+            logger.exception("DB connection error during Deriv OAuth save for user %s", profile.email)
+            # Close broken connection so the next request gets a fresh one.
+            from django.db import connection
+            connection.close()
+            return Response(
+                {"detail": "Temporary database error. Please retry."},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+        except Exception:
+            logger.exception("Unexpected error during Deriv OAuth save for user %s", profile.email)
+            return Response(
+                {"detail": "Failed to save Deriv accounts. Please retry."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+        all_accounts = DerivAccount.objects.filter(user=profile, is_active=True)
+        serializer = DerivAccountSerializer(all_accounts, many=True)
+        logger.info("Deriv OAuth: saved %d accounts for user %s", len(saved_accounts), profile.email)
+        return Response({"accounts": serializer.data}, status=status.HTTP_200_OK)
+
+    @staticmethod
+    def _save_accounts(profile, accounts_data):
         saved_accounts = []
         with transaction.atomic():
             for acct in accounts_data:
@@ -84,7 +110,6 @@ class OAuthCallbackView(APIView):
 
             # Set default: prefer first real account, else first demo
             if saved_accounts:
-                # Clear existing defaults for this user
                 DerivAccount.objects.filter(user=profile).update(is_default=False)
 
                 real_accounts = [a for a in saved_accounts if a.account_type == "real"]
@@ -92,9 +117,7 @@ class OAuthCallbackView(APIView):
                 default_account.is_default = True
                 default_account.save(update_fields=["is_default"])
 
-        all_accounts = DerivAccount.objects.filter(user=profile, is_active=True)
-        serializer = DerivAccountSerializer(all_accounts, many=True)
-        return Response({"accounts": serializer.data}, status=status.HTTP_200_OK)
+        return saved_accounts
 
 
 class DerivAccountListView(APIView):

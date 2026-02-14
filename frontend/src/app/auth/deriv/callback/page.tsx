@@ -1,10 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import api from "@/lib/api";
 
 const STORAGE_KEY = "tradeiq_deriv_oauth_accounts_v1";
+const MAX_RETRIES = 2;
+const RETRY_DELAYS = [1500, 3000]; // ms
 
 type DerivOAuthAccount = { login_id: string; token: string; currency: string };
 
@@ -64,12 +66,39 @@ function clearStoredAccounts() {
   }
 }
 
+/** Retry a function with exponential backoff. */
+async function withRetry<T>(fn: () => Promise<T>, retries = MAX_RETRIES): Promise<T> {
+  let lastError: unknown;
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      lastError = err;
+      // Don't retry 4xx client errors (auth issues, bad request, etc.)
+      if (err && typeof err === "object" && "status" in err) {
+        const status = (err as { status: number }).status;
+        if (status >= 400 && status < 500) throw err;
+      }
+      if (attempt < retries) {
+        const delay = RETRY_DELAYS[attempt] ?? 3000;
+        await new Promise((r) => setTimeout(r, delay));
+      }
+    }
+  }
+  throw lastError;
+}
+
 export default function DerivOAuthCallbackPage() {
   const router = useRouter();
   const [status, setStatus] = useState<"loading" | "success" | "error">("loading");
   const [errorMessage, setErrorMessage] = useState("");
+  const processedRef = useRef(false);
 
   useEffect(() => {
+    // Guard against double-invocation (React strict mode / HMR)
+    if (processedRef.current) return;
+    processedRef.current = true;
+
     const processCallback = async () => {
       try {
         const params = new URLSearchParams(window.location.search);
@@ -97,11 +126,11 @@ export default function DerivOAuthCallbackPage() {
           // ignore
         }
 
-        // If user isn't signed in yet, send them to /login and come back here
-        // after Google OAuth. We'll resume from sessionStorage.
+        // Ensure the user is signed in. If not, redirect to login and come
+        // back here after Google OAuth — we resume from sessionStorage.
+        const { createClient } = await import("@/lib/supabase/client");
+        const supabase = createClient();
         try {
-          const { createClient } = await import("@/lib/supabase/client");
-          const supabase = createClient();
           const { data } = await supabase.auth.getSession();
           if (!data.session) {
             router.replace(`/login?next=${encodeURIComponent("/auth/deriv/callback")}`);
@@ -112,7 +141,17 @@ export default function DerivOAuthCallbackPage() {
           // attempting the save; backend will return a clear 401.
         }
 
-        await api.saveDerivOAuthTokens(accounts);
+        // Force-refresh the Supabase access token so the backend receives a
+        // fresh JWT — avoids failures caused by tokens that expired during the
+        // OAuth redirect round-trip.
+        try {
+          await supabase.auth.refreshSession();
+        } catch {
+          // Non-fatal: the existing token might still be valid.
+        }
+
+        // Retry transient backend failures (cold starts, DB connection resets).
+        await withRetry(() => api.saveDerivOAuthTokens(accounts));
         clearStoredAccounts();
         setStatus("success");
 
