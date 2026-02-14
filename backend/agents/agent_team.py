@@ -712,13 +712,20 @@ def publish_to_bluesky(
 
     Args:
         commentary: Market commentary to publish
-        image_path: Optional image file path
+        image_path: Optional image file path (relative or absolute)
 
     Returns dict with published/bluesky_uri/bluesky_url fields.
     """
     from content.bluesky import BlueskyPublisher
+    from django.conf import settings
 
     publisher = BlueskyPublisher()
+
+    # Convert relative image path to absolute path
+    if image_path and not image_path.startswith('/') and ':' not in image_path:
+        # This is a relative path like "charts/BTC_USD_20260214.png"
+        # Reconstruct full path from MEDIA_ROOT
+        image_path = str(settings.MEDIA_ROOT / image_path)
 
     if image_path:
         result = publisher.post_with_image(

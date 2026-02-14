@@ -52,7 +52,31 @@ def generate_image_for_content(
 
         # Step 2: Generate appropriate image based on classification
         if classification["image_type"] == "chart":
-            image_result = _generate_chart_image(classification, analysis_report)
+            # Validate chart parameters before generating
+            chart_params = classification.get("chart_params")
+            if not chart_params or not chart_params.get("instrument"):
+                logger.warning("Chart selected but no valid instrument found. Falling back to AI image.")
+                image_result = _generate_ai_image(content_text, persona_id)
+            else:
+                # Validate we can get real market data for this instrument
+                instrument = chart_params["instrument"]
+                logger.info(f"Validating market data availability for {instrument}")
+
+                try:
+                    from market.tools import fetch_price_data
+                    validation_data = fetch_price_data(instrument)
+
+                    if validation_data and validation_data.get("price"):
+                        logger.info(f"✓ Real market data available for {instrument}: ${validation_data['price']}")
+                        # Update chart params with real current price
+                        chart_params["current_price"] = validation_data["price"]
+                        image_result = _generate_chart_image(classification, analysis_report)
+                    else:
+                        logger.warning(f"✗ No real market data for {instrument}. Falling back to AI image.")
+                        image_result = _generate_ai_image(content_text, persona_id)
+                except Exception as e:
+                    logger.warning(f"✗ Market data validation failed for {instrument}: {e}. Using AI image.")
+                    image_result = _generate_ai_image(content_text, persona_id)
         else:
             image_result = _generate_ai_image(content_text, persona_id)
 

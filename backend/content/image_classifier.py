@@ -186,9 +186,49 @@ Return JSON only."""
         return _quick_classify(content_text, analysis_report)
 
 
+def _llm_extract_instrument(content_text: str) -> Optional[str]:
+    """
+    Use LLM to extract trading instrument from ambiguous content.
+
+    Returns instrument symbol or None.
+    """
+    try:
+        llm = get_llm_client()
+        prompt = f"""Extract the trading instrument from this text. Return ONLY the symbol in format like:
+- BTC/USD, ETH/USD (for crypto)
+- EUR/USD, GBP/USD (for forex)
+- GOLD, SILVER, OIL (for commodities)
+- NASDAQ, S&P 500 (for indices)
+
+If no specific instrument is mentioned, return "NONE".
+
+Text: "{content_text}"
+
+Instrument:"""
+
+        response = llm.simple_chat(
+            system_prompt="You are a financial instrument extractor. Be precise and concise.",
+            user_message=prompt,
+            temperature=0.1,
+            max_tokens=20
+        )
+
+        instrument = response.strip().upper()
+        if instrument and instrument != "NONE" and len(instrument) < 20:
+            logger.info(f"LLM extracted instrument: {instrument}")
+            return instrument
+
+    except Exception as e:
+        logger.warning(f"LLM instrument extraction failed: {e}")
+
+    return None
+
+
 def _extract_chart_params(content_text: str, analysis_report: Optional[dict]) -> Optional[dict]:
     """
     Extract chart parameters from content and analysis report.
+
+    Uses smart instrument detection and fetches real market price if possible.
 
     Returns dict with instrument, price, change_pct, etc.
     """
@@ -206,46 +246,125 @@ def _extract_chart_params(content_text: str, analysis_report: Optional[dict]) ->
     # Try to extract from content text
     text_lower = content_text.lower()
 
-    # Extract instrument
+    # Expanded instrument detection with common trading pairs
     instruments = {
-        'btc': 'BTC/USD',
-        'bitcoin': 'BTC/USD',
-        'eth': 'ETH/USD',
-        'ethereum': 'ETH/USD',
-        'eur': 'EUR/USD',
-        'gold': 'GOLD',
-        'nasdaq': 'NASDAQ',
-        'sp500': 'S&P 500'
+        # Crypto
+        'btc': 'BTC/USD', 'bitcoin': 'BTC/USD',
+        'eth': 'ETH/USD', 'ethereum': 'ETH/USD',
+        'xrp': 'XRP/USD', 'ripple': 'XRP/USD',
+        'ltc': 'LTC/USD', 'litecoin': 'LTC/USD',
+        'ada': 'ADA/USD', 'cardano': 'ADA/USD',
+        'sol': 'SOL/USD', 'solana': 'SOL/USD',
+        'doge': 'DOGE/USD', 'dogecoin': 'DOGE/USD',
+
+        # Forex
+        'eur/usd': 'EUR/USD', 'eurusd': 'EUR/USD', 'eur': 'EUR/USD',
+        'gbp/usd': 'GBP/USD', 'gbpusd': 'GBP/USD', 'gbp': 'GBP/USD',
+        'usd/jpy': 'USD/JPY', 'usdjpy': 'USD/JPY',
+        'aud/usd': 'AUD/USD', 'audusd': 'AUD/USD',
+        'usd/cad': 'USD/CAD', 'usdcad': 'USD/CAD',
+        'usd/chf': 'USD/CHF', 'usdchf': 'USD/CHF',
+        'nzd/usd': 'NZD/USD', 'nzdusd': 'NZD/USD',
+
+        # Commodities
+        'gold': 'GOLD', 'xau': 'GOLD', 'xau/usd': 'GOLD',
+        'silver': 'SILVER', 'xag': 'SILVER',
+        'oil': 'OIL', 'crude': 'OIL', 'wti': 'OIL',
+
+        # Indices
+        'nasdaq': 'NASDAQ', 'ndx': 'NASDAQ',
+        'sp500': 'S&P 500', 's&p': 'S&P 500', 'spx': 'S&P 500',
+        'dow': 'DJI', 'djia': 'DJI',
+        'dax': 'DAX',
+        'ftse': 'FTSE',
     }
 
+    # First try exact match
     for key, value in instruments.items():
         if key in text_lower:
             params["instrument"] = value
+            logger.info(f"Extracted instrument via keyword match: {value}")
             break
+
+    # If no match, try pattern matching for forex pairs (XXX/YYY)
+    if not params.get("instrument"):
+        forex_match = re.search(r'\b([A-Z]{3})[/\s]([A-Z]{3})\b', content_text)
+        if forex_match:
+            params["instrument"] = f"{forex_match.group(1)}/{forex_match.group(2)}"
+            logger.info(f"Extracted instrument via pattern match: {params['instrument']}")
+
+    # If still no match, try LLM extraction for ambiguous cases
+    if not params.get("instrument"):
+        llm_instrument = _llm_extract_instrument(content_text)
+        if llm_instrument:
+            params["instrument"] = llm_instrument
+            logger.info(f"Extracted instrument via LLM: {llm_instrument}")
 
     # Extract percentage change
     pct_match = re.search(r'([-+]?\d+\.?\d*)%', content_text)
     if pct_match:
         params["change_pct"] = float(pct_match.group(1))
 
-    # Extract price
-    price_match = re.search(r'\$(\d+[,\d]*\.?\d*)[kmb]?', content_text, re.IGNORECASE)
+    # Extract price (handle various formats: $1,234, $1.23, $95k, etc.)
+    price_match = re.search(r'\$(\d+[,\d]*\.?\d*)([kmb]?)', content_text, re.IGNORECASE)
     if price_match:
         price_str = price_match.group(1).replace(',', '')
-        params["current_price"] = float(price_str)
+        multiplier_str = price_match.group(2).lower()
+        price = float(price_str)
 
-    # Only return params if we have minimum required data
-    if params.get("instrument") and params.get("change_pct") is not None:
-        # Use default price if not found
-        if not params.get("current_price"):
+        # Handle k, m, b multipliers
+        if multiplier_str == 'k':
+            price *= 1000
+        elif multiplier_str == 'm':
+            price *= 1_000_000
+        elif multiplier_str == 'b':
+            price *= 1_000_000_000
+
+        params["current_price"] = price
+
+    # If we have instrument but no price, try to fetch real current price
+    if params.get("instrument") and not params.get("current_price"):
+        try:
+            from market.tools import fetch_price_data
+            price_data = fetch_price_data(params["instrument"])
+            if price_data and price_data.get("price"):
+                params["current_price"] = price_data["price"]
+                logger.info(f"Fetched real price for {params['instrument']}: ${params['current_price']}")
+        except Exception as e:
+            logger.warning(f"Failed to fetch real price: {e}")
+            # Use sensible defaults as fallback
             default_prices = {
                 'BTC/USD': 95000,
                 'ETH/USD': 3500,
                 'EUR/USD': 1.0850,
-                'GOLD': 2400
+                'GBP/USD': 1.2650,
+                'GOLD': 2400,
+                'SILVER': 28,
+                'OIL': 75,
+                'NASDAQ': 18000,
+                'S&P 500': 5500
             }
             params["current_price"] = default_prices.get(params["instrument"], 100)
 
+    # Only return params if we have minimum required data
+    if params.get("instrument"):
+        # Validate the instrument is a valid trading pair
+        instrument = params["instrument"]
+
+        # Log what we extracted
+        logger.info(f"Extracted chart params: instrument={instrument}, price={params.get('current_price')}, change={params.get('change_pct')}%")
+
+        # If no change_pct specified, leave as None so chart generator can calculate from real data
+        if params.get("change_pct") is None:
+            logger.info("No change_pct specified - will calculate from market data")
+            params["change_pct"] = None
+
+        # Ensure we have a price
+        if not params.get("current_price"):
+            params["current_price"] = 100
+
         return params
+    else:
+        logger.info("No valid instrument extracted from content")
 
     return None

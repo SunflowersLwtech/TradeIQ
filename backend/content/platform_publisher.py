@@ -78,15 +78,23 @@ def _publish_to_bluesky(
 
     Args:
         content: Post text or thread content
-        image_path: Optional image file path
+        image_path: Optional image file path (relative or absolute)
         post_type: "single" | "thread"
 
     Returns:
         Publish result dict
     """
     from .bluesky import BlueskyPublisher
+    from django.conf import settings
 
     try:
+        # Convert relative image path to absolute path
+        if image_path and not image_path.startswith('/') and ':' not in image_path:
+            # This is a relative path like "charts/BTC_USD_20260214.png"
+            # Reconstruct full path from MEDIA_ROOT
+            image_path = str(settings.MEDIA_ROOT / image_path)
+            logger.info(f"Converted relative path to absolute: {image_path}")
+
         publisher = BlueskyPublisher()
 
         if post_type == "thread":

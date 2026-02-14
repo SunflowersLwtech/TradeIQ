@@ -45,6 +45,10 @@ class BlueskyPublisher:
         Publish a single post (max 300 chars).
         Supports hashtag facets and optional link card embed.
         """
+        # Enforce 300 character limit (Bluesky hard limit)
+        if len(text) > 300:
+            text = text[:297] + "..."
+
         text = self._auto_hashtags(text)
         facets = self._build_facets(text)
 
@@ -93,6 +97,10 @@ class BlueskyPublisher:
                 "url": "https://bsky.app/..."
             }
         """
+        # Enforce 300 character limit (Bluesky hard limit)
+        if len(text) > 300:
+            text = text[:297] + "..."
+
         # Read image file
         with open(image_path, "rb") as f:
             image_data = f.read()

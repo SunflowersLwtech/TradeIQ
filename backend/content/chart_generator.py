@@ -15,7 +15,7 @@ logger = logging.getLogger("tradeiq.chart_generator")
 def generate_market_chart(
     instrument: str,
     current_price: float,
-    change_pct: float,
+    change_pct: Optional[float],
     time_range: str = "24h",
     annotations: Optional[List[dict]] = None,
     analysis_report: Optional[dict] = None
@@ -41,7 +41,19 @@ def generate_market_chart(
     """
     try:
         # Fetch historical price data
+        logger.info(f"Generating chart for {instrument} (current_price: ${current_price}, change: {change_pct}%)")
         price_data = _fetch_price_history(instrument, time_range, current_price, change_pct)
+
+        if not price_data or len(price_data) == 0:
+            logger.error(f"No price data available for {instrument}")
+            return {
+                "success": False,
+                "error": f"No price data available for {instrument}",
+                "image_path": None,
+                "image_url": None
+            }
+
+        logger.info(f"Chart will use {len(price_data)} data points")
 
         # Create figure with proper dimensions (16:9 ratio for social media)
         fig, ax = plt.subplots(figsize=(12, 6.75), dpi=100)
@@ -50,17 +62,35 @@ def generate_market_chart(
         times = [point['time'] for point in price_data]
         prices = [point['price'] for point in price_data]
 
+        # Calculate actual change from data if not provided or if it's 0
+        if change_pct == 0 or change_pct is None:
+            if len(prices) >= 2:
+                first_price = prices[0]
+                last_price = prices[-1]
+                if first_price and first_price != 0:
+                    change_pct = ((last_price - first_price) / first_price) * 100
+                    logger.info(f"Calculated actual change from data: {change_pct:.2f}%")
+
         # Plot line chart
         line_color = '#e74c3c' if change_pct < 0 else '#2ecc71'  # Red for down, green for up
         ax.plot(times, prices, color=line_color, linewidth=2.5, label=instrument)
 
-        # Format chart
-        ax.set_title(
-            f"{instrument} - {abs(change_pct):.1f}% {'Drop' if change_pct < 0 else 'Gain'}",
-            fontsize=16,
-            fontweight='bold',
-            pad=20
-        )
+        # Format chart title based on actual change
+        if abs(change_pct) >= 0.01:  # Only show change if meaningful (>0.01%)
+            ax.set_title(
+                f"{instrument} - {abs(change_pct):.2f}% {'Drop' if change_pct < 0 else 'Gain'}",
+                fontsize=16,
+                fontweight='bold',
+                pad=20
+            )
+        else:
+            # For very small changes, just show current price
+            ax.set_title(
+                f"{instrument} - ${current_price:,.2f}",
+                fontsize=16,
+                fontweight='bold',
+                pad=20
+            )
         ax.set_xlabel('Time', fontsize=12, labelpad=10)
         ax.set_ylabel('Price', fontsize=12, labelpad=10)
 
@@ -163,23 +193,79 @@ def _fetch_price_history(
     instrument: str,
     time_range: str,
     current_price: float,
-    change_pct: float
+    change_pct: Optional[float]
 ) -> List[dict]:
     """
-    Fetch or generate price history for charting.
+    Fetch real market price history for charting.
 
-    In production, this would call the market/tools.py fetch_price_data() function.
-    For now, we'll generate synthetic data based on current price and change.
+    Uses market/tools.py to get actual Deriv data.
+    Falls back to synthetic data if market data unavailable.
     """
-    # TODO: Replace with actual market data fetch
-    # from market.tools import fetch_price_data
-    # return fetch_price_data(instrument, time_range)
+    try:
+        from market.tools import fetch_price_history
 
-    # Generate synthetic price data for demo
+        # Map time_range to count of candles
+        count_map = {
+            "1h": 60,
+            "24h": 120,
+            "7d": 168,
+            "30d": 120
+        }
+        count = count_map.get(time_range, 120)
+
+        # Map time_range to timeframe
+        timeframe_map = {
+            "1h": "1m",
+            "24h": "1h",
+            "7d": "1h",
+            "30d": "1d"
+        }
+        timeframe = timeframe_map.get(time_range, "1h")
+
+        logger.info(f"Fetching real market data for {instrument} ({timeframe}, {count} candles)")
+
+        # Fetch real market data
+        market_data = fetch_price_history(
+            instrument=instrument,
+            timeframe=timeframe,
+            count=count
+        )
+
+        candles = market_data.get("candles", [])
+
+        if candles and len(candles) > 0:
+            # Convert candles to chart data format
+            data = []
+            for candle in candles:
+                # Convert epoch timestamp to datetime
+                if isinstance(candle.get("time"), (int, float)):
+                    candle_time = datetime.fromtimestamp(candle["time"])
+                else:
+                    candle_time = datetime.now()
+
+                data.append({
+                    'time': candle_time,
+                    'price': candle.get("close", current_price)
+                })
+
+            logger.info(f"Successfully loaded {len(data)} real market data points")
+            return data
+        else:
+            logger.warning(f"No market data available for {instrument}, using fallback")
+
+    except Exception as e:
+        logger.warning(f"Failed to fetch real market data: {e}, using fallback")
+
+    # Fallback: Generate synthetic price data
+    logger.info("Using synthetic price data as fallback")
     hours = 24 if time_range == "24h" else 1 if time_range == "1h" else 168
     num_points = 50
 
-    start_price = current_price / (1 + change_pct / 100)  # Calculate starting price
+    # Calculate start price based on change_pct, or use slight variation if None
+    if change_pct is not None and change_pct != 0:
+        start_price = current_price / (1 + change_pct / 100)
+    else:
+        start_price = current_price * 0.95  # Default to 5% range
     end_price = current_price
 
     now = datetime.now()
