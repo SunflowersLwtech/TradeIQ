@@ -145,7 +145,7 @@ export default function PnLChart({
   const pnl = currentValue - startValue;
   const pnlPercent = startValue !== 0 ? (pnl / Math.abs(startValue)) * 100 : 0;
   const isPositive = pnl >= 0;
-  const chartColor = isPositive ? "#4ade80" : "#f87171";
+  const chartColor = isPositive ? "#26a69a" : "#ef5350";
   const gradientId = `pnlGradient-${(instrument || "portfolio").replace(/[^a-zA-Z0-9]/g, "")}`;
 
   const tickInterval = useMemo(() => {

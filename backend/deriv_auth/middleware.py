@@ -12,13 +12,14 @@ from .models import DerivAccount
 def get_deriv_token(request) -> str:
     """Get the active Deriv token for the current user.
 
-    Returns user's default Deriv account token, or falls back to env DERIV_TOKEN.
+    Priority: user's default account token > env DERIV_TOKEN fallback.
     """
     if hasattr(request, "_deriv_token_cache"):
         return request._deriv_token_cache
 
-    token = os.environ.get("DERIV_TOKEN", "")  # default fallback
+    token = ""
 
+    # 1. Try authenticated user's linked Deriv account first
     user = getattr(request, "user", None)
     if user and getattr(user, "is_authenticated", False):
         user_id = getattr(user, "id", None)
@@ -33,6 +34,10 @@ def get_deriv_token(request) -> str:
                     token = account.token
             except Exception:
                 pass
+
+    # 2. Fall back to env only when no user account token found
+    if not token:
+        token = os.environ.get("DERIV_TOKEN", "")
 
     request._deriv_token_cache = token
     return token

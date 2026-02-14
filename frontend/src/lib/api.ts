@@ -1263,6 +1263,7 @@ export interface CopyTradingListResponse {
   disclaimer?: string;
   is_demo?: boolean;
   error?: string;
+  api_error?: string;
 }
 
 export interface CopyTradeActionResponse {

@@ -137,7 +137,8 @@ def get_top_traders(limit: int = 10, api_token: str = None) -> Dict[str, Any]:
                 "count": len(demo_traders),
                 "total_count": len(DEMO_TRADERS),
                 "source": "demo_fallback",
-                "disclaimer": "Demo data shown. Past performance is not indicative of future results.",
+                "api_error": result["error"],
+                "disclaimer": "Demo data shown due to API error. Connect your Deriv account for live data.",
             }
 
         traders = result.get("traders", [])
@@ -150,7 +151,7 @@ def get_top_traders(limit: int = 10, api_token: str = None) -> Dict[str, Any]:
                 "count": len(demo_traders),
                 "total_count": len(DEMO_TRADERS),
                 "source": "demo_fallback",
-                "disclaimer": "Demo data shown. Past performance is not indicative of future results.",
+                "disclaimer": "No live traders found. Showing demo data for reference.",
             }
 
         # Enrich with stats for top traders (limit API calls)
@@ -205,8 +206,8 @@ def get_top_traders(limit: int = 10, api_token: str = None) -> Dict[str, Any]:
             "count": len(demo_traders),
             "total_count": len(DEMO_TRADERS),
             "source": "demo_fallback",
-            "error": str(e),
-            "disclaimer": "Demo data shown due to API error. Past performance is not indicative of future results.",
+            "api_error": str(e),
+            "disclaimer": "Demo data shown due to connection error. Connect your Deriv account for live data.",
         }
 
 

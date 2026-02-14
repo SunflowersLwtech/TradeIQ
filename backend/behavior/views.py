@@ -224,20 +224,33 @@ class TradeViewSet(viewsets.ModelViewSet):
             user_id = request.data.get("user_id", DEMO_USER_ID)
         days_back = int(request.data.get("days_back", 30))
 
-        # Get or create user
+        # Get or create user profile — use the authenticated user's ID, never
+        # silently fall back to DEMO_USER which causes real trades to sync to
+        # the wrong account.
         try:
             user = UserProfile.objects.get(id=user_id)
         except UserProfile.DoesNotExist:
-            user, _ = UserProfile.objects.get_or_create(
-                id=DEMO_USER_ID,
-                defaults={
-                    "email": "alex@tradeiq.demo",
-                    "name": "Alex Demo",
-                    "preferences": {"theme": "dark"},
-                    "watchlist": [],
-                },
-            )
-            user_id = str(user.id)
+            if req_user and getattr(req_user, "is_authenticated", False):
+                # Authenticated user without a profile yet — create one
+                user = UserProfile.objects.create(
+                    id=user_id,
+                    email=getattr(req_user, "email", ""),
+                    name=getattr(req_user, "user_metadata", {}).get("full_name", "")
+                         if hasattr(req_user, "user_metadata") else "",
+                    preferences={"theme": "dark"},
+                    watchlist=[],
+                )
+            else:
+                user, _ = UserProfile.objects.get_or_create(
+                    id=DEMO_USER_ID,
+                    defaults={
+                        "email": "alex@tradeiq.demo",
+                        "name": "Alex Demo",
+                        "preferences": {"theme": "dark"},
+                        "watchlist": [],
+                    },
+                )
+                user_id = str(user.id)
 
         api_token = get_deriv_token(request)
         if not api_token:
@@ -533,20 +546,31 @@ class SyncTradesView(APIView):
             user_id = request.data.get("user_id", DEMO_USER_ID)
         days_back = int(request.data.get("days_back", 30))
 
-        # Resolve user
+        # Resolve user — create profile for authenticated users, only fall
+        # back to demo for unauthenticated requests.
         try:
             user = UserProfile.objects.get(id=user_id)
         except UserProfile.DoesNotExist:
-            user, _ = UserProfile.objects.get_or_create(
-                id=DEMO_USER_ID,
-                defaults={
-                    "email": "alex@tradeiq.demo",
-                    "name": "Alex Demo",
-                    "preferences": {"theme": "dark"},
-                    "watchlist": [],
-                },
-            )
-            user_id = str(user.id)
+            if req_user and getattr(req_user, "is_authenticated", False):
+                user = UserProfile.objects.create(
+                    id=user_id,
+                    email=getattr(req_user, "email", ""),
+                    name=getattr(req_user, "user_metadata", {}).get("full_name", "")
+                         if hasattr(req_user, "user_metadata") else "",
+                    preferences={"theme": "dark"},
+                    watchlist=[],
+                )
+            else:
+                user, _ = UserProfile.objects.get_or_create(
+                    id=DEMO_USER_ID,
+                    defaults={
+                        "email": "alex@tradeiq.demo",
+                        "name": "Alex Demo",
+                        "preferences": {"theme": "dark"},
+                        "watchlist": [],
+                    },
+                )
+                user_id = str(user.id)
 
         api_token = get_deriv_token(request)
         if not api_token:

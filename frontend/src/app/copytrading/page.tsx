@@ -27,6 +27,7 @@ export default function CopyTradingPage() {
   const [recommendation, setRecommendation] = usePageState<TraderRecommendationResponse | null>("copy:recommendation", null);
   const [recLoading, setRecLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [dataSource, setDataSource] = usePageState<string>("copy:source", "");
 
   useEffect(() => {
     const loadTraders = async () => {
@@ -38,6 +39,10 @@ export default function CopyTradingPage() {
         setTraders(nextTraders);
         setShownCount(nextCount);
         setTotalCount(nextTotalCount);
+        setDataSource(resp.source || "");
+        if (resp.api_error) {
+          setError(`Live data unavailable: ${resp.api_error}`);
+        }
       } catch (err) {
         setTraders([]);
         setShownCount(0);
@@ -141,6 +146,15 @@ export default function CopyTradingPage() {
             <p className="text-profit text-xs font-medium">
               Real Account -- Real Copy Trading. Actions here use your real Deriv account.
               Start/stop copy trading will affect real funds.
+            </p>
+          </div>
+        )}
+
+        {/* Demo data source notice */}
+        {dataSource === "demo_fallback" && isConnected && (
+          <div className="p-3 bg-warning/5 border border-warning/20 rounded-md">
+            <p className="text-warning text-xs font-medium">
+              Showing demo traders. Your account is connected but live copy trading data is currently unavailable.
             </p>
           </div>
         )}

@@ -33,6 +33,8 @@ export function useDerivAuth() {
   }, []);
 
   useEffect(() => {
+    // Reset OAuth guard on mount so user can retry after failed callbacks
+    oauthStartedRef.current = false;
     fetchAccounts();
   }, [fetchAccounts]);
 
