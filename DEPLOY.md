@@ -216,6 +216,7 @@ Render supports the `render.yaml` blueprint for one-click deployment.
 | `OPENROUTER_API_KEY` | OpenRouter API key | Yes* |
 | `DERIV_APP_ID` | Deriv API application ID | Yes |
 | `DERIV_TOKEN` | Deriv API token | Yes |
+| `DERIV_ENCRYPTION_KEY` | Encryption key for storing per-user Deriv OAuth tokens (64 hex chars) | Yes (Deriv OAuth) |
 | `NEWS_API_KEY` | NewsAPI.org API key | Yes |
 | `FINNHUB_API_KEY` | Finnhub.io API key | Yes |
 | `BLUESKY_HANDLE` | Bluesky account handle | Yes |

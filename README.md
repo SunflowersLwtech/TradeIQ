@@ -200,6 +200,7 @@ SUPABASE_JWT_SECRET=your-jwt-secret
 # External APIs
 DERIV_APP_ID=123456
 DERIV_TOKEN=your-deriv-token
+DERIV_ENCRYPTION_KEY=your-64-hex-key      # Required for Deriv OAuth token encryption
 NEWS_API_KEY=your-newsapi-key
 FINNHUB_API_KEY=your-finnhub-key
 
