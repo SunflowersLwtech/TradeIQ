@@ -103,7 +103,13 @@ export default function DashboardPage() {
               </button>
             ))}
           </div>
-          <div className="ml-auto pb-3">
+          <div className="ml-auto pb-3 flex items-center gap-2">
+            {metrics.dataSource === "deriv_live" && metrics.derivLoginId && (
+              <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-sm text-[10px] mono-data tracking-wider border border-cyan/30 text-cyan/80 bg-cyan/5">
+                <span className="w-1.5 h-1.5 rounded-full bg-cyan animate-pulse" />
+                {metrics.derivLoginId} · {metrics.derivCurrency}
+              </span>
+            )}
             <DataSourceBadge isUsingMock={metricsIsMock} isBackendOnline={isBackendOnline} />
           </div>
         </div>
@@ -119,7 +125,7 @@ export default function DashboardPage() {
                 <DataCard
                   title="Portfolio Value"
                   value={`$${metrics.portfolioValue.toLocaleString("en-US", { minimumFractionDigits: 2 })}`}
-                  subtitle="Updated just now"
+                  subtitle={metrics.dataSource === "deriv_live" ? `Deriv ${metrics.derivLoginId}` : "Updated just now"}
                   trend={metrics.totalPnl > 0 ? "up" : metrics.totalPnl < 0 ? "down" : "neutral"}
                   glow
                 />
