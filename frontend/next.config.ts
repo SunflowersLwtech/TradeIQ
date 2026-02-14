@@ -1,0 +1,54 @@
+import type { NextConfig } from "next";
+import path from "path";
+import { config } from "dotenv";
+
+// Load root TradeIQ/.env so frontend gets NEXT_PUBLIC_* vars (shared with backend)
+config({ path: path.resolve(__dirname, "../.env") });
+
+const nextConfig: NextConfig = {
+  // "standalone" for Docker/Railway/Render deployments
+  // Vercel auto-detects and ignores this setting
+  // Set NEXT_OUTPUT=standalone env var in Docker, or leave undefined for Vercel
+  output: process.env.NEXT_OUTPUT === "standalone" ? "standalone" : undefined,
+
+  // Enable gzip compression for smaller transfer sizes
+  compress: true,
+
+  // Remove X-Powered-By header (minor security + smaller response)
+  poweredByHeader: false,
+
+  // Allow backend API images if any
+  images: {
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "**.supabase.co",
+      },
+    ],
+  },
+
+  // Cache static assets aggressively on Render
+  headers: async () => [
+    {
+      // Match requests for static asset file extensions in public/
+      source: "/:path(.+\\.(?:svg|jpg|png|webp|avif|ico|woff2?))",
+      headers: [
+        {
+          key: "Cache-Control",
+          value: "public, max-age=31536000, immutable",
+        },
+      ],
+    },
+    {
+      source: "/_next/static/:path*",
+      headers: [
+        {
+          key: "Cache-Control",
+          value: "public, max-age=31536000, immutable",
+        },
+      ],
+    },
+  ],
+};
+
+export default nextConfig;

@@ -1,0 +1,12 @@
+[
+  {
+    "model": "behavior.userprofile",
+    "pk": "aaaaaaaa-0000-4000-8000-000000000003",
+    "fields": {
+      "email": "demo-losschasing@tradeiq.local",
+      "name": "Demo Loss Chasing",
+      "preferences": {},
+      "watchlist": []
+    }
+  }
+]
