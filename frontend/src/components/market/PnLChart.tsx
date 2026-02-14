@@ -24,10 +24,31 @@ interface PnLChartProps {
   height?: number;
   instrument?: string;
   timeframe?: string;
+  candles?: number;
+  timeline?: string;
+  onLoadingChange?: (loading: boolean) => void;
 }
 
-function formatTimeLabel(isoOrDate: string | Date): string {
+function formatTimeLabel(isoOrDate: string | Date, timeline?: string): string {
   const date = typeof isoOrDate === "string" ? new Date(isoOrDate) : isoOrDate;
+
+  // Very long timelines: show month and year
+  if (timeline === "6M" || timeline === "1Y") {
+    return date.toLocaleDateString("en-US", {
+      month: "short",
+      year: "numeric",
+    });
+  }
+
+  // Medium timelines: show month and day
+  if (timeline === "1W" || timeline === "2W" || timeline === "1M" || timeline === "3M") {
+    return date.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+    });
+  }
+
+  // Short timelines: show time only
   return date.toLocaleTimeString("en-US", {
     hour: "2-digit",
     minute: "2-digit",
@@ -41,6 +62,9 @@ export default function PnLChart({
   height = 300,
   instrument,
   timeframe = "1h",
+  candles = 120,
+  timeline,
+  onLoadingChange,
 }: PnLChartProps) {
   const [data, setData] = useState<DataPoint[]>([]);
   const [hoveredValue, setHoveredValue] = useState<number | null>(null);
@@ -49,16 +73,20 @@ export default function PnLChart({
   useEffect(() => {
     let cancelled = false;
 
+    // Clear data immediately when parameters change
+    setData([]);
+    setIsLoading(true);
+    onLoadingChange?.(true);
+
     async function fetchPriceChart(symbol: string, tf: string): Promise<DataPoint[]> {
-      const history = await api.getMarketHistory(symbol, tf, 120);
+      const history = await api.getMarketHistory(symbol, tf, candles);
       return (history.candles || []).map((candle) => ({
-        time: formatTimeLabel(candle.time),
+        time: candle.time, // Store raw ISO timestamp
         value: Number(candle.close || 0),
       }));
     }
 
     const fetchData = async () => {
-      setIsLoading(true);
       try {
         if (instrument) {
           const chartData = await fetchPriceChart(instrument, timeframe);
@@ -83,7 +111,7 @@ export default function PnLChart({
                 cumulative += Number(trade.pnl || 0);
                 const timestamp = trade.opened_at || trade.created_at || new Date().toISOString();
                 return {
-                  time: formatTimeLabel(timestamp),
+                  time: timestamp, // Store raw ISO timestamp
                   value: Number(cumulative.toFixed(2)),
                 };
               });
@@ -110,19 +138,20 @@ export default function PnLChart({
       } finally {
         if (!cancelled) {
           setIsLoading(false);
+          onLoadingChange?.(false);
         }
       }
     };
 
     fetchData();
-    const interval = setInterval(fetchData, instrument ? 15000 : 30000);
+    const interval = setInterval(fetchData, instrument ? 30000 : 60000);
 
     return () => {
       cancelled = true;
       clearInterval(interval);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [instrument, timeframe]);
+  }, [instrument, timeframe, candles, timeline]);
 
   const currentValue = hoveredValue ?? data[data.length - 1]?.value ?? 0;
   const startValue = data[0]?.value ?? 0;
@@ -138,6 +167,9 @@ export default function PnLChart({
     if (data.length === 0) {
       return <div className="text-xs text-muted mono-data py-16 text-center">No chart data available.</div>;
     }
+
+    // Calculate interval to show only ~5 labels evenly distributed
+    const tickInterval = Math.floor(data.length / 5);
 
     return (
       <ResponsiveContainer width="100%" height={height}>
@@ -163,7 +195,8 @@ export default function PnLChart({
             tick={{ fontSize: 11, fill: "#71717a", fontFamily: "JetBrains Mono, monospace" }}
             axisLine={{ stroke: "#27272a" }}
             tickLine={false}
-            interval="preserveStartEnd"
+            tickFormatter={(isoTime) => formatTimeLabel(isoTime, timeline)}
+            interval={tickInterval}
           />
           <YAxis
             tick={{ fontSize: 11, fill: "#71717a", fontFamily: "JetBrains Mono, monospace" }}

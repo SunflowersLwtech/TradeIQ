@@ -33,9 +33,33 @@ const INSTRUMENT_ICONS: Record<string, string> = {
   GOLD: "🥇",
 };
 
+type TimelineOption = "1H" | "6H" | "1D" | "3D" | "1W" | "2W" | "1M" | "3M" | "6M" | "1Y";
+
+interface TimelineConfig {
+  label: string;
+  timeframe: string;
+  candles: number;
+}
+
+const TIMELINE_OPTIONS: Record<TimelineOption, TimelineConfig> = {
+  "1H": { label: "1H", timeframe: "1h", candles: 12 },
+  "6H": { label: "6H", timeframe: "1h", candles: 24 },
+  "1D": { label: "1D", timeframe: "1h", candles: 36 },
+  "3D": { label: "3D", timeframe: "1h", candles: 72 },
+  "1W": { label: "1W", timeframe: "1d", candles: 7 },
+  "2W": { label: "2W", timeframe: "1d", candles: 14 },
+  "1M": { label: "1M", timeframe: "1d", candles: 30 },
+  "3M": { label: "3M", timeframe: "1d", candles: 90 },
+  "6M": { label: "6M", timeframe: "1d", candles: 180 },
+  "1Y": { label: "1Y", timeframe: "1d", candles: 365 },
+};
+
+const TIMELINE_ORDER: TimelineOption[] = ["1H", "6H", "1D", "3D", "1W", "2W", "1M", "3M", "6M", "1Y"];
+
 export default function MarketPage() {
   const { data: availableInstruments } = useInstrumentUniverse();
   const [selectedInstrument, setSelectedInstrument] = useState("");
+  const [selectedTimeline, setSelectedTimeline] = useState<TimelineOption>("1D");
   const [question, setQuestion] = useState("");
   const [analysis, setAnalysis] = useState("");
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -43,6 +67,7 @@ export default function MarketPage() {
   const [technicals, setTechnicals] = useState<MarketTechnicals | null>(null);
   const [sentiment, setSentiment] = useState<MarketSentiment | null>(null);
   const [isMetricsLoading, setIsMetricsLoading] = useState(false);
+  const [isChartLoading, setIsChartLoading] = useState(false);
 
   useEffect(() => {
     if (!selectedInstrument && availableInstruments.length > 0) {
@@ -163,8 +188,42 @@ export default function MarketPage() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2">
-            <PnLChart title={`${selectedInstrument || "MARKET"} PRICE CHART`} height={380} instrument={selectedInstrument || undefined} timeframe="1h" />
+          <div className="lg:col-span-2 space-y-4">
+            <div className="min-h-[460px]">
+              <PnLChart
+                key={`${selectedInstrument}-${selectedTimeline}`}
+                title={`${selectedInstrument || "MARKET"} PRICE CHART`}
+                height={380}
+                instrument={selectedInstrument || undefined}
+                timeframe={TIMELINE_OPTIONS[selectedTimeline].timeframe}
+                candles={TIMELINE_OPTIONS[selectedTimeline].candles}
+                timeline={selectedTimeline}
+                onLoadingChange={setIsChartLoading}
+              />
+            </div>
+
+            {/* Timeline Controls */}
+            <div className="flex items-center justify-center gap-3 flex-wrap">
+              {TIMELINE_ORDER.map((timeline) => (
+                <button
+                  key={timeline}
+                  onClick={() => setSelectedTimeline(timeline)}
+                  disabled={isChartLoading}
+                  className={cn(
+                    "px-6 py-3 rounded-lg text-sm font-bold tracking-widest mono-data transition-all duration-200",
+                    selectedTimeline === timeline
+                      ? "bg-white text-black shadow-lg scale-110 border-2 border-white"
+                      : "bg-card text-muted-foreground border-2 border-border hover:text-white hover:border-white/40 hover:bg-surface hover:scale-105 shadow-md",
+                    isChartLoading && "opacity-40 cursor-not-allowed pointer-events-none"
+                  )}
+                >
+                  {TIMELINE_OPTIONS[timeline].label}
+                  {isChartLoading && selectedTimeline === timeline && (
+                    <span className="ml-2 inline-block w-3 h-3 border-2 border-black border-t-transparent rounded-full animate-spin" />
+                  )}
+                </button>
+              ))}
+            </div>
           </div>
 
           <div className="space-y-5">
