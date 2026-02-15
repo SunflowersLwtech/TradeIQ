@@ -140,7 +140,8 @@ export default function MarketPage() {
         ? question.trim()
         : `${selectedInstrument}: ${question.trim()}`;
       const response = await api.askMarketAnalyst(prompt);
-      setAnalysis(response.answer + (response.disclaimer ? `\n\n${response.disclaimer}` : ""));
+      // Disclaimer is already included in the LLM answer via system prompt + compliance layer
+      setAnalysis(response.answer);
     } catch {
       setAnalysis("Unable to retrieve AI analysis right now. Please verify backend and API availability.");
     } finally {
@@ -388,7 +389,7 @@ export default function MarketPage() {
                     setAnalysis("");
                     const prompt = q.includes(selectedInstrument) ? q : `${selectedInstrument}: ${q}`;
                     api.askMarketAnalyst(prompt)
-                      .then((response) => setAnalysis(response.answer + (response.disclaimer ? `\n\n${response.disclaimer}` : "")))
+                      .then((response) => setAnalysis(response.answer))
                       .catch(() => setAnalysis("Unable to retrieve AI analysis right now. Please verify backend and API availability."))
                       .finally(() => setIsAnalyzing(false));
                   }
